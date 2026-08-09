@@ -3,19 +3,19 @@
 'use strict';
 let done=false;
 const T=()=>window.THREE;
-function M(c,opt={}){return new T().MeshStandardMaterial({color:c,roughness:.68,...opt})}
-function part(g,n,geo,mat,x,y,z){const o=geo&&geo.isObject3D?geo:new T().Mesh(geo,mat);o.name=n;o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o}
+function M(c,opt={}){return T().MeshStandardMaterial({color:c,roughness:.68,...opt})}
+function part(g,n,geo,mat,x,y,z){const o=geo&&geo.isObject3D?geo:T().Mesh(geo,mat);o.name=n;o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o}
 function capsule(r,h,mat){const X=T();if(X.CapsuleGeometry){return new X.Mesh(new X.CapsuleGeometry(r,h/2,6,14),mat)}const g=new X.Group();part(g,'core',new X.CylinderGeometry(r,r,h,14),mat,0,0,0);part(g,'top',new X.SphereGeometry(r,14,10),mat,0,h/2,0);part(g,'bottom',new X.SphereGeometry(r,14,10),mat,0,-h/2,0);return g}
 function hair(g,style,col){const m=M(col,{roughness:.82});
- if(style==='long'){part(g,'hairCap',new T().SphereGeometry(.245,16,10,0,Math.PI*2,0,Math.PI*.62),m,0,.14,-.01);part(g,'hairBack',new T().SphereGeometry(.24,14,10),m,0,-.08,-.13).scale.set(1,1.35,.48);for(let i=-2;i<=2;i++)part(g,'strand'+i,new T().CylinderGeometry(.035,.06,.32,8),m,i*.08,-.14,-.16)}
- else if(style==='curly'){for(let i=-2;i<=2;i++)for(let j=0;j<2;j++)part(g,'curl'+i+j,new T().SphereGeometry(.09,10,8),m,i*.085,.12+j*.08,.02-(j*.04))}
- else {part(g,'hairCap',new T().SphereGeometry(.245,16,10,0,Math.PI*2,0,Math.PI*.6),m,0,.14,0);for(let i=-2;i<=2;i++)part(g,'fringe'+i,new T().SphereGeometry(.06,9,7),m,i*.075,.08,.19)}
+ if(style==='long'){part(g,'hairCap',T().SphereGeometry(.245,16,10,0,Math.PI*2,0,Math.PI*.62),m,0,.14,-.01);part(g,'hairBack',T().SphereGeometry(.24,14,10),m,0,-.08,-.13).scale.set(1,1.35,.48);for(let i=-2;i<=2;i++)part(g,'strand'+i,T().CylinderGeometry(.035,.06,.32,8),m,i*.08,-.14,-.16)}
+ else if(style==='curly'){for(let i=-2;i<=2;i++)for(let j=0;j<2;j++)part(g,'curl'+i+j,T().SphereGeometry(.09,10,8),m,i*.085,.12+j*.08,.02-(j*.04))}
+ else {part(g,'hairCap',T().SphereGeometry(.245,16,10,0,Math.PI*2,0,Math.PI*.6),m,0,.14,0);for(let i=-2;i<=2;i++)part(g,'fringe'+i,T().SphereGeometry(.06,9,7),m,i*.075,.08,.19)}
 }
 function face(head,skin,gender){
  const white=M(0xf7f7f2), iris=M(gender==='female'?0x4c8ad9:0x3a2416,{emissive:gender==='female'?0x102850:0});
- [-1,1].forEach((s,i)=>{part(head,'eyeWhite'+i,new T().SphereGeometry(.045,10,8),white,s*.075,.025,.218);part(head,'iris'+i,new T().SphereGeometry(.022,8,6),iris,s*.075,.025,.258)});
- part(head,'nose',new T().SphereGeometry(.027,8,6),skin,0,-.035,.245);
- const mouth=part(head,'smile',new T().TorusGeometry(.055,.012,6,12,Math.PI),M(0x7b2940),0,-.09,.23);mouth.rotation.x=Math.PI/2;
+ [-1,1].forEach((s,i)=>{part(head,'eyeWhite'+i,T().SphereGeometry(.045,10,8),white,s*.075,.025,.218);part(head,'iris'+i,T().SphereGeometry(.022,8,6),iris,s*.075,.025,.258)});
+ part(head,'nose',T().SphereGeometry(.027,8,6),skin,0,-.035,.245);
+ const mouth=part(head,'smile',T().TorusGeometry(.055,.012,6,12,Math.PI),M(0x7b2940),0,-.09,.23);mouth.rotation.x=Math.PI/2;
 }
 function make(def={}){const THREE=T(),g=new THREE.Group();const female=!!def.gender||!!def.isFemale;const skin=M(def.skinColor||0xd69b72);const shirt=M(def.shirtColor||def.color||0x2459b8);const pants=M(def.pantsColor||(female?0x4a246e:0x202942));const shoe=M(0x171b24,{metalness:.15});
  const hips=part(g,'hips',new THREE.SphereGeometry(.22,14,10),pants,0,.58,0);hips.scale.set(1,.62,.72);

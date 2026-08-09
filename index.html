@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>خانه ما — نسخه ۳</title>
+<title>Family Fun — Open City Edition</title>
+<link rel="stylesheet" href="nextgen.css">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -380,10 +381,10 @@ const C = {
 // GAME STATE
 // ════════════════════════════════════
 let pName="بازیکن", pGender="male";
-let scene,camera,renderer,clock;
-let playerGroup, playerBody;
-let npcs=[],interactables=[];
-let particles=[];
+var scene,camera,renderer,clock;
+var playerGroup, playerBody;
+var npcs=[],interactables=[];
+var particles=[];
 let moveX=0,moveY=0,isSprint=false;
 let camYaw=0, camMode='TPV';
 let isBlock=false;
@@ -392,7 +393,7 @@ let isGameRunning=false;
 let gameTime=8*60, gameDay=1;
 let stats={health:100,energy:80,hunger:70,happy:85,money:40,xp:0,level:1};
 let inventory=[];
-let worldObjs={};
+var worldObjs={};
 let currentLoc="خیابان";
 
 // ════════════════════════════════════
@@ -1888,5 +1889,6 @@ function updateEnhancedLighting(){
 }
 
 </script>
+<script src="src-nextgen.js"></script>
 </body>
 </html>

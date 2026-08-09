@@ -43,3 +43,5 @@ if(typeof old==='function'){
  document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1200));
 }
 })();
+
+;

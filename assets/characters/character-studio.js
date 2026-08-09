@@ -29,7 +29,7 @@ function make(def={}){const THREE=T(),g=new THREE.Group();const female=!!def.gen
  g.userData.characterStudio=true;return g}
 function replace(host,def){if(!host)return;const old=host.userData?.body||host;const fresh=make(def);if(old.parent){old.parent.add(fresh);fresh.position.copy(old.position);fresh.rotation.copy(old.rotation);old.parent.remove(old)}if(host.userData)host.userData.body=fresh;return fresh}
 function boot(){if(done||!T()||!window.scene)return;done=true;try{
- if(window.playerBody){const fresh=replace({userData:{body:window.playerBody}}, {gender:window.pGender==='female',shirtColor:window.pGender==='female'?0xd44289:0x2563d8,hairColor:0x24150f});window.playerBody=fresh;window.playerGroup&&window.playerGroup.add(fresh)}
+ if(window.playerBody){const isFemale=!!document.querySelector('#gbF.active');const fresh=replace({userData:{body:window.playerBody}}, {gender:isFemale,shirtColor:isFemale?0xd44289:0x2563d8,hairColor:0x24150f});window.playerBody=fresh;window.playerGroup&&window.playerGroup.add(fresh)}
  (window.npcs||[]).forEach((n,i)=>{if(n.userData?.body){const d=n.userData;replace(n,{gender:i%3===0?'female':'male',color:d.color||0x2c70b8,shirtColor:d.shirtColor||d.color,hairColor:i%2?0x24150f:0x4b2b1b})}});
  window.__familyFunCharacters=true;window.showToast&&window.showToast('🎭 شخصیت‌های سه‌بعدی جدید فعال شدند');
  }catch(e){console.error('Character Studio',e)}}

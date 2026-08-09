@@ -20,7 +20,21 @@ function interact(){if(driving)return;const q=nearestPoint();if(!q||Math.hypot(p
 function drive(dt){const k=window._keys||{};const gas=k.KeyW||k.ArrowUp, brake=k.KeyS||k.ArrowDown, left=k.KeyA||k.ArrowLeft,right=k.KeyD||k.ArrowRight;if(gas)speed=Math.min(13,speed+dt*10);else if(brake)speed=Math.max(-4,speed-dt*13);else speed*=Math.pow(.12,dt);const steer=(right?1:0)-(left?1:0);heading+=steer*dt*(.75+Math.abs(speed)*.08)*(speed>=0?1:-1);driving.rotation.y=heading;const dx=Math.sin(heading)*speed*dt,dz=Math.cos(heading)*speed*dt;const ox=driving.position.x,oz=driving.position.z;moveSafe(driving,dx,dz,1.25);if(Math.hypot(driving.position.x-ox,driving.position.z-oz)<Math.abs(speed*dt)*.35){speed*=-.22;toast('💥 برخورد! سرعت کم شد')}playerGroup.position.copy(driving.position);}
 function walk(dt){if(!playerGroup||!window.isGameRunning)return;const p=playerGroup.position;if(boxHit(p.x,p.z,.55)&&safePos)playerGroup.position.copy(safePos);else safePos=p.clone();}
 function tick(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(ready&&window.isGameRunning){if(driving)drive(dt);else walk(dt);const p=driving?driving.position:playerGroup?.position;const q=nearestPoint();if(p){$('#ff-speed').textContent=driving?Math.round(Math.abs(speed)*8)+' km/h':'0 km/h';$('#ff-drive').textContent=driving?'WASD رانندگی · E خروج':'پیاده · WASD حرکت · Shift دویدن';const d=q?Math.hypot(p.x-q.x,p.z-q.z):99;$('#ff-prompt').textContent=driving?'کنترل نرم، مراقب ساختمان‌ها باش':(d<5?'E تعامل با '+q.name:'E تعامل · نزدیک نقاط مهم شو')}}requestAnimationFrame(tick)}
-function art(){try{const loader=new THREE.TextureLoader();loader.load('assets/family-fun-street-sign.svg',t=>{t.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Mesh(new THREE.PlaneGeometry(5.2,1.55),new THREE.MeshBasicMaterial({map:t,transparent:true}));s.position.set(0,3.6,-4.2);s.rotation.y=Math.PI;s.name='FamilyDistrictSign';scene.add(s)});loader.load('assets/family-fun-car-decal.svg',t=>{t.colorSpace=THREE.SRGBColorSpace;(window.__familyCars||[]).slice(0,3).forEach(c=>{const d=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.33),new THREE.MeshBasicMaterial({map:t,transparent:true}));d.position.set(0,.75,2.03);c.add(d)})})}catch(e){console.warn('Family Fun art',e)}}
+function art(){try{
+ const loader=new THREE.TextureLoader();
+ loader.load('assets/family-fun-street-sign.svg',t=>{
+  t.colorSpace=THREE.SRGBColorSpace;
+  const s=new THREE.Mesh(new THREE.PlaneGeometry(5.2,1.55),new THREE.MeshBasicMaterial({map:t,transparent:true}));
+  s.position.set(0,3.6,-4.2);s.rotation.y=Math.PI;s.name='FamilyDistrictSign';scene.add(s);
+ });
+ loader.load('assets/family-fun-car-decal.svg',t=>{
+  t.colorSpace=THREE.SRGBColorSpace;
+  (window.__familyCars||[]).slice(0,3).forEach(c=>{
+   const d=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.33),new THREE.MeshBasicMaterial({map:t,transparent:true}));
+   d.position.set(0,.75,2.03);c.add(d);
+  });
+ });
+}catch(e){console.warn('Family Fun art',e)}}
 function boot(){if(ready||!window.scene)return;ready=true;css();art();document.addEventListener('keydown',e=>{if(e.code==='KeyE'&&!e.repeat){if(driving)enterExit();else{const c=nearestCar();if(c)enterExit();else interact()}}});toast('🎮 گیم‌پلی پیشرفته فعال شد — E تعامل / خودرو');requestAnimationFrame(tick)}
 const old=window.initGame;if(typeof old==='function')window.initGame=function(){old.apply(this,arguments);setTimeout(boot,600)};else document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1200));
 })();

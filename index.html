@@ -228,9 +228,6 @@ body{overflow:hidden;font-family:'Vazirmatn',sans-serif;background:#000;touch-ac
   background:rgba(255,140,66,.15);border:2px solid rgba(255,140,66,.3);
   display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;}
 #sprint-btn.on{background:rgba(255,140,66,.45);border-color:#ff8c42;}
-
-/* Family Fun visual polish layer */
-.enhanced-badge{position:fixed;bottom:14px;left:14px;z-index:20;background:rgba(16,24,40,.72);border:1px solid rgba(255,215,120,.28);border-radius:999px;padding:7px 12px;color:#ffe6a3;font-size:11px;backdrop-filter:blur(8px);pointer-events:none}
 </style>
 </head>
 <body>
@@ -918,7 +915,6 @@ function initGame(){
   try{
     setupThreeJS();
     buildWorld();
-    enhanceWorld();
     createPlayer();
     spawnNPCs();
     setupControls();
@@ -1803,90 +1799,6 @@ function startTimers(){
 
 function fadeOut(dur,cb){const f=document.getElementById('fade');f.style.opacity=1;setTimeout(cb,dur*1000);}
 function fadeIn(dur){const f=document.getElementById('fade');setTimeout(()=>f.style.opacity=0,50);}
-
-// ════════════════════════════════════
-// FAMILY FUN — REALISM & WORLD DETAIL PASS
-// ════════════════════════════════════
-function makeCanvasTexture(draw,w=512,h=256){
-  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');draw(x,w,h);
-  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
-}
-function enhancedLabel(text,icon,color){
-  return makeCanvasTexture((c,w,h)=>{
-    c.fillStyle='#172033';c.fillRect(0,0,w,h);c.fillStyle=color||'#ffd166';c.fillRect(0,h-12,w,12);
-    c.font='bold 54px Vazirmatn, Arial';c.textAlign='center';c.textBaseline='middle';c.fillStyle='#fff';c.fillText(icon+'  '+text,w/2,h/2-4);
-  },512,128);
-}
-function addEnhancedMesh(geo,material,x,y,z,group){
-  const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;(group||scene).add(m);return m;
-}
-function enhanceWorld(){
-  if(window.__familyFunEnhanced||typeof THREE==='undefined')return;window.__familyFunEnhanced=true;
-  const badge=document.createElement('div');badge.className='enhanced-badge';badge.textContent='✦ شهر زنده · نسخه‌ی طبیـعی‌تر';document.body.appendChild(badge);
-  buildStreetDetail();buildArchitectureDetail();buildGardens();buildTraffic();buildAtmosphere();
-  window.setInterval(updateEnhancedLighting,800);
-}
-function buildStreetDetail(){
-  const asphalt=mat(0x242832,{roughness:.95});
-  // اصلاح محور خیابان دوم به محدوده‌ی قابل بازی و افزودن خط‌کشی مقیاس‌دار
-  addEnhancedMesh(new THREE.PlaneGeometry(80,6),asphalt,0,.035,0).rotation.x=-Math.PI/2;
-  const lineMat=mat(0xf5d76e,{roughness:.7});
-  for(let z=-36;z<=36;z+=7){const a=addEnhancedMesh(new THREE.PlaneGeometry(1.8,.09),lineMat,0,.07,z);a.rotation.x=-Math.PI/2;}
-  for(let x=-36;x<=36;x+=7){const a=addEnhancedMesh(new THREE.PlaneGeometry(.09,1.8),lineMat,x,.071,0);a.rotation.x=-Math.PI/2;}
-  // گذرگاه‌ها
-  [-10,10].forEach(z=>{for(let i=-3;i<=3;i++){const a=addEnhancedMesh(new THREE.PlaneGeometry(1.2,4.8),mat(0xe9edf2,{roughness:.85}),i*1.7,.075,z);a.rotation.x=-Math.PI/2;}});
-  // چراغ‌های گرم خیابان
-  [[-5,-13],[5,-13],[-5,13],[5,13],[-25,-3],[25,3]].forEach(([x,z])=>{
-    const g=new THREE.Group();addEnhancedMesh(new THREE.CylinderGeometry(.07,.11,3.2,8),mat(0x303744,{metalness:.65,roughness:.35}),x,1.6,z,g);
-    addEnhancedMesh(new THREE.SphereGeometry(.18,10,8),mat(0xffd27d,{emissive:0xffa62b,emissiveIntensity:.9}),x,3.25,z,g);
-    const l=new THREE.PointLight(0xffb35c,0,7);l.position.set(x,3.15,z);g.add(l);g.userData.lamp=l;scene.add(g);
-  });
-}
-function buildArchitectureDetail(){
-  const windowMat=mat(0x9edbff,{roughness:.12,metalness:.15,emissive:0x102840,emissiveIntensity:.35});
-  // قاب‌های پنجره و سایه‌بان‌های متفاوت برای حس ساختمان واقعی
-  [[18,5,6,4],[12,-15,8,5],[5,15,9,5],[-18,8,8,4],[28,12,10,4],[-10,-20,6,4],[8,-25,7,5],[20,-20,8,5],[-15,-5,7,6],[3,20,5,4],[25,25,12,6],[-20,15,7,4],[22,-10,6,4],[-8,25,6,4]].forEach(([x,z,w,h])=>{
-    const front=z+(h*.65)+.08;for(let i=-1;i<=1;i+=2){
-      addEnhancedMesh(new THREE.BoxGeometry(1.45,1.25,.07),windowMat,x+i*Math.min(w/3,2.2),h*.62,front);
-      addEnhancedMesh(new THREE.BoxGeometry(1.8,.08,.55),mat(0xf2b56b,{roughness:.65}),x+i*Math.min(w/3,2.2),h*1.08,front+.08);
-    }
-    const aw=mat(0xd94b52,{roughness:.8});const canopy=addEnhancedMesh(new THREE.BoxGeometry(Math.min(w*.7,5),.12,1.1),aw,x,h*.62,front+.5);canopy.rotation.x=-.18;
-  });
-}
-function buildGardens(){
-  const soil=mat(0x6d472c,{roughness:1});const leaf=mat(0x4f9b58,{roughness:.9});const flower=mat(0xff7198,{roughness:.75,emissive:0x1b0610,emissiveIntensity:.15});
-  [[-9,9],[9,9],[-15,-11],[16,17],[-26,20]].forEach(([x,z],n)=>{
-    addEnhancedMesh(new THREE.BoxGeometry(5,.12,2.4),soil,x,.08,z);
-    for(let i=0;i<7;i++){const px=x-2+i*.65;addEnhancedMesh(new THREE.CylinderGeometry(.05,.08,.45,6),leaf,px,.32,z+(i%2-.5)*.65);addEnhancedMesh(new THREE.SphereGeometry(.15,7,6),flower,px,.62,z+(i%2-.5)*.65);}
-  });
-}
-function carPaint(c){return mat(c,{roughness:.28,metalness:.62});}
-function makeCar(x,z,color,axis){
-  const g=new THREE.Group();addEnhancedMesh(new THREE.BoxGeometry(2.3,.55,4.1),carPaint(color),0,.58,0,g);
-  addEnhancedMesh(new THREE.BoxGeometry(1.8,.48,1.55),mat(0x172333,{roughness:.15,metalness:.3}),0,1.05,-.15,g);
-  [-.78,.78].forEach(px=>[-1.35,1.35].forEach(pz=>addEnhancedMesh(new THREE.CylinderGeometry(.32,.32,.18,12),mat(0x111318,{roughness:.75}),px,.3,pz,g).rotation.z=Math.PI/2));
-  g.position.set(x,0,z);g.userData.axis=axis;g.userData.speed=.8+Math.random()*.7;g.userData.phase=Math.random()*20;scene.add(g);return g;
-}
-function buildTraffic(){
-  window.__familyCars=[makeCar(-18,2,0xd94b4b,'x'),makeCar(12,-2,0x3e8ed0,'x'),makeCar(2,-28,0xf0b429,'z')];
-  window.setInterval(()=>{const cars=window.__familyCars||[];cars.forEach(c=>{if(c.userData.axis==='x'){c.position.x+=.25*c.userData.speed;if(c.position.x>42)c.position.x=-42;}else{c.position.z+=.22*c.userData.speed;if(c.position.z>42)c.position.z=-42;}})},120);
-}
-function buildAtmosphere(){
-  // لایه‌ی آسمان و ذرات کم‌هزینه‌ی گرده/پرنده برای عمق بیشتر
-  const sky=new THREE.Mesh(new THREE.SphereGeometry(95,32,16),new THREE.MeshBasicMaterial({color:0x76b8df,side:THREE.BackSide,transparent:true,opacity:.28,depthWrite:false}));scene.add(sky);
-  const pts=[];for(let i=0;i<70;i++)pts.push((Math.random()-.5)*80,.6+Math.random()*5,(Math.random()-.5)*80);
-  const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
-  const dust=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffe6a3,size:.035,transparent:true,opacity:.28}));scene.add(dust);window.__familyDust=dust;
-}
-function updateEnhancedLighting(){
-  if(!window.__familyFunEnhanced||typeof scene==='undefined'||!worldObjs.sun)return;
-  const t=(gameTime%1440)/1440;const daylight=Math.max(0,Math.sin((t-.25)*Math.PI*2));
-  const night=1-daylight;worldObjs.sun.intensity=.25+daylight*1.15;worldObjs.sun.color.setHSL(.1,.65,.62+.18*daylight);
-  scene.background.setHSL(.57,.58,.12+.43*daylight);scene.fog.color.setHSL(.58,.35,.14+.42*daylight);scene.fog.density=.010+.006*night;
-  scene.traverse(o=>{if(o.userData&&o.userData.lamp)o.userData.lamp.intensity=night>0.35?1.8:0;});
-  if(window.__familyDust)window.__familyDust.rotation.y+=.003;
-}
-
 </script>
 </body>
 </html>

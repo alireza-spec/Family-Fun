@@ -5,7 +5,7 @@ let done=false;
 const T=()=>window.THREE;
 function M(c,opt={}){return new T().MeshStandardMaterial({color:c,roughness:.68,...opt})}
 function part(g,n,geo,mat,x,y,z){const o=geo&&geo.isObject3D?geo:new T().Mesh(geo,mat);o.name=n;o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o}
-function capsule(r,h,mat){const g=new T().Group();const core=part(g,'core',new T().CylinderGeometry(r,r,h,12),mat,0,0,0);const a=part(g,'top',new T().SphereGeometry(r,12,8),mat,0,h/2,0);const b=part(g,'bottom',new T().SphereGeometry(r,12,8),mat,0,-h/2,0);return g}
+function capsule(r,h,mat){const X=T();if(X.CapsuleGeometry){return new X.Mesh(new X.CapsuleGeometry(r,h/2,6,14),mat)}const g=new X.Group();part(g,'core',new X.CylinderGeometry(r,r,h,14),mat,0,0,0);part(g,'top',new X.SphereGeometry(r,14,10),mat,0,h/2,0);part(g,'bottom',new X.SphereGeometry(r,14,10),mat,0,-h/2,0);return g}
 function hair(g,style,col){const m=M(col,{roughness:.82});
  if(style==='long'){part(g,'hairCap',new T().SphereGeometry(.245,16,10,0,Math.PI*2,0,Math.PI*.62),m,0,.14,-.01);part(g,'hairBack',new T().SphereGeometry(.24,14,10),m,0,-.08,-.13).scale.set(1,1.35,.48);for(let i=-2;i<=2;i++)part(g,'strand'+i,new T().CylinderGeometry(.035,.06,.32,8),m,i*.08,-.14,-.16)}
  else if(style==='curly'){for(let i=-2;i<=2;i++)for(let j=0;j<2;j++)part(g,'curl'+i+j,new T().SphereGeometry(.09,10,8),m,i*.085,.12+j*.08,.02-(j*.04))}
@@ -28,10 +28,20 @@ function make(def={}){const THREE=T(),g=new THREE.Group();const female=!!def.gen
  if(female){const scarf=part(g,'scarf',new THREE.TorusGeometry(.205,.028,7,18),M(def.scarfColor||0xe77b9b),0,1.22,0);scarf.rotation.x=Math.PI/2}
  g.userData.characterStudio=true;return g}
 function replace(host,def){if(!host)return;const old=host.userData?.body||host;const fresh=make(def);if(old.parent){old.parent.add(fresh);fresh.position.copy(old.position);fresh.rotation.copy(old.rotation);old.parent.remove(old)}if(host.userData)host.userData.body=fresh;return fresh}
-function boot(){if(done||!T()||!window.scene)return;done=true;try{
+function boot(){if(done||!T()||!window.scene)return;try{
  if(window.playerBody){const isFemale=!!document.querySelector('#gbF.active');const fresh=replace({userData:{body:window.playerBody}}, {gender:isFemale,shirtColor:isFemale?0xd44289:0x2563d8,hairColor:0x24150f});window.playerBody=fresh;window.playerGroup&&window.playerGroup.add(fresh)}
  (window.npcs||[]).forEach((n,i)=>{if(n.userData?.body){const d=n.userData;replace(n,{gender:i%3===0?'female':'male',color:d.color||0x2c70b8,shirtColor:d.shirtColor||d.color,hairColor:i%2?0x24150f:0x4b2b1b})}});
- window.__familyFunCharacters=true;window.showToast&&window.showToast('🎭 شخصیت‌های سه‌بعدی جدید فعال شدند');
- }catch(e){console.error('Character Studio',e)}}
-const old=window.initGame;if(typeof old==='function')window.initGame=function(){old.apply(this,arguments);setTimeout(boot,650)};else document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1000));
+ window.__familyFunCharacters=true;if(!window.playerBody)return;done=true;window.showToast&&window.showToast('🎭 مدل سه‌بعدی حرفه‌ای فعال شد');
+ }catch(e){console.error('Character Studio',e)} }
+const old=window.initGame;
+if(typeof old==='function'){
+ window.initGame=function(){
+  old.apply(this,arguments);
+  let tries=0;
+  const poll=()=>{ if(done||tries++>24)return; boot(); if(!done)setTimeout(poll,250); };
+  setTimeout(poll,400);
+ };
+}else{
+ document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1000));
+}
 })();

@@ -36,5 +36,10 @@ function art(){try{
  });
 }catch(e){console.warn('Family Fun art',e)}}
 function boot(){if(ready||!window.scene)return;ready=true;css();art();document.addEventListener('keydown',e=>{if(e.code==='KeyE'&&!e.repeat){if(driving)enterExit();else{const c=nearestCar();if(c)enterExit();else interact()}}});toast('🎮 گیم‌پلی پیشرفته فعال شد — E تعامل / خودرو');requestAnimationFrame(tick)}
-const old=window.initGame;if(typeof old==='function')window.initGame=function(){old.apply(this,arguments);setTimeout(boot,600)};else document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1200));
+const old=window.initGame;
+if(typeof old==='function'){
+ window.initGame=function(){old.apply(this,arguments);setTimeout(boot,600)};
+}else{
+ document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1200));
+}
 })();

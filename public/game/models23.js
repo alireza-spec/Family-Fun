@@ -9,8 +9,8 @@
    Van: Cesium Milk Truck, Khronos Sample Assets, CC BY 4.0 (see CREDITS). */
 (function(){
 'use strict';
-var CHAR_FILES = ['char-courier.glb','char-cashier.glb','char-accountant.glb','char-patrol.glb','char-paramedic.glb'];
-var CAR_FILES = {race:'car-race.glb', suv:'car-suv.glb', truck:'car-truck.glb', ambulance:'car-ambulance.glb', van:'car-van.glb'};
+var CHAR_FILES = ['char-courier.glb','char-cashier.glb','char-accountant.glb','char-patrol.glb','char-paramedic.glb','char-grandma.glb','char-officelady.glb','char-schoolkid.glb','char-stockclerk.glb','char-officemanager.glb','char-receptionist.glb','char-nurse.glb','char-doctor.glb','char-firechief.glb','char-policechief.glb'];
+var CAR_FILES = {race:'car-race.glb', suv:'car-suv.glb', truck:'car-truck.glb', ambulance:'car-ambulance.glb', van:'car-van.glb', tractor:'car-tractor.glb'};
 var templates = {}, mixers = [], playerModel = null, modelledCars = [], modelledNPCs = [], modelledTraffic = [];
 var backpackOn = true, backpackGroup = null, phoneGroup = null;
 function log(){ try{ console.log.apply(console, ['[FF23 models]'].concat([].slice.call(arguments))); }catch(e){} }
@@ -289,7 +289,7 @@ function loop(){
       var dx = pos.x - rec.prev.x, dz = pos.z - rec.prev.z;
       var sp = Math.sqrt(dx*dx + dz*dz) / Math.max(dt, 0.001);
       rec.prev = {x: pos.x, z: pos.z};
-      if (rec.entry){
+      if (rec.entry && !(rec.entry.ff30HoldUntil && performance.now() < rec.entry.ff30HoldUntil)){
         if (sp > 1.2) setAnim(rec.entry, 'Walk');
         else setAnim(rec.entry, 'Idle');
         if (rec.entry.mixer) rec.entry.mixer.timeScale = sp > 1.2 ? 0.9 : 1;
@@ -351,6 +351,9 @@ function installNPCs(){
       // never the tiny-box look from the screenshots, which was the
       // giant player making normal NPCs look small by comparison.
       wrapper.scale.multiplyScalar(0.94 + (idx % 5) * 0.03);
+      (function(){ var _f = CHAR_FILES[idx % CHAR_FILES.length] || '';
+        if (_f.indexOf('schoolkid') >= 0) wrapper.scale.multiplyScalar(0.78);
+        else if (_f.indexOf('grandma') >= 0) wrapper.scale.multiplyScalar(0.93); })();
       npc.userData.speedFactor = 0.85 + (idx % 5) * 0.08; // 2.5.0: varied walk speeds
       npc.add(wrapper);
       npc.userData.body.visible = false;
@@ -360,12 +363,13 @@ function installNPCs(){
   });
 }
 var CAR_PAINTS = [0xd7263d, 0x1f6feb, 0xf2b705, 0x2ecc71, 0x8e44ad, 0xe67e22, 0x20c2c2, 0xe8e8e8];
-function paintCar(wrapper, seed){
+function paintCar(wrapper, seed, forceColor){
   // 2.5.0: Kenney cars shipped all-white and flat-looking. Give each car
   // a real paint job (metalness + varied colour, cloned per instance so
   // cars do not share one material) and dark wheels so they read as cars.
+  // 3.0.0: forceColor overrides the palette (police white, taxi yellow).
   try{
-    var paint = CAR_PAINTS[Math.abs(seed) % CAR_PAINTS.length];
+    var paint = (forceColor !== undefined && forceColor !== null) ? forceColor : CAR_PAINTS[Math.abs(seed) % CAR_PAINTS.length];
     wrapper.traverse(function(n){
       if (!n.isMesh) return;
       var nm = (n.name || '').toLowerCase();
@@ -396,6 +400,9 @@ function installPeds(){
       var clone = cloneSkinned(tpl);
       var wrapper = fitCharacter(clone);
       wrapper.scale.multiplyScalar(0.94 + (idx % 5) * 0.03);
+      (function(){ var _f = CHAR_FILES[idx % CHAR_FILES.length] || '';
+        if (_f.indexOf('schoolkid') >= 0) wrapper.scale.multiplyScalar(0.78);
+        else if (_f.indexOf('grandma') >= 0) wrapper.scale.multiplyScalar(0.93); })();
       ped.group.add(wrapper);
       ped.group.children.forEach(function(c){ if (c !== wrapper) c.visible = false; });
       ped.group.userData.ff25PedModelled = true;
@@ -406,10 +413,10 @@ function installPeds(){
 }
 function carModelFor(car){
   if (!car) return 'race';
-  if (car.kind === 'police') return 'ambulance';
+  if (car.kind === 'police') return 'suv'; // 3.0.0: white SUV + light bar reads as a police car (ambulance body stays for ambulances)
   if (car.sports) return 'race';
-  if (car.kind === 'parked') return ['suv','van','truck'][Math.floor(Math.random()*3)];
-  return ['race','suv','truck','van'][Math.floor(Math.random()*4)];
+  if (car.kind === 'parked') return ['suv','van','truck','tractor'][Math.floor(Math.random()*4)];
+  return ['race','suv','truck','van','tractor'][Math.floor(Math.random()*5)];
 }
 function installCars(){
   if (!window.scene) return;
@@ -424,7 +431,21 @@ function installCars(){
       try{
         var clone = tpl.scene.clone(true);
         var wrapper = fitCar(clone, key === 'van' || key === 'truck' ? 4.6 : 4.1);
-        paintCar(wrapper, idSeq);
+        paintCar(wrapper, idSeq, car.kind === 'police' ? 0xf5f5f5 : null);
+        if (car.kind === 'traffic' && idSeq % 4 === 0){
+          // 3.0.0 TAXI: every 4th traffic car is repainted yellow with a roof sign.
+          paintCar(wrapper, 0, 0xf7c948);
+          try{
+            var _c = document.createElement('canvas'); _c.width = 128; _c.height = 48;
+            var _x = _c.getContext('2d'); _x.fillStyle = '#111111'; _x.fillRect(0,0,128,48);
+            _x.fillStyle = '#f7c948'; _x.font = 'bold 30px Arial'; _x.textAlign = 'center'; _x.fillText('TAXI', 64, 34);
+            var _t = new THREE.CanvasTexture(_c); _t.colorSpace = THREE.SRGBColorSpace;
+            var _sign = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.3), new THREE.MeshStandardMaterial({color: 0x111111}));
+            _sign.position.set(0, 1.45, 0); wrapper.add(_sign);
+            var _face = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.18), new THREE.MeshBasicMaterial({map: _t}));
+            _face.position.set(0, 1.45, 0.16); wrapper.add(_face);
+          }catch(e){}
+        }
         o.add(wrapper);
         hideChildren(o);
         // Re-show the wrapper (hideChildren only hid pre-existing children).
@@ -456,7 +477,7 @@ function installCars(){
   var fam = window.__familyCars || [];
   fam.forEach(function(g, i){
     if (!g || g.userData.ff23Modelled) return;
-    var tpl = templates[CAR_FILES[['race','suv','van'][i % 3]]];
+    var tpl = templates[CAR_FILES[['race','suv','van','tractor'][i % 4]]];
     if (!tpl) return;
     try{
       var clone = tpl.scene.clone(true);
@@ -487,6 +508,19 @@ function addDrawerButtons(){
 }
 window.FFModels = {
   player: null,
+  npcEntries: modelledNPCs, // 3.0.0: city30 drives Wave/Greet/Talk on idle NPCs through this list
+  setNPCAnim: function(entry, name, holdMs){
+    if (!entry || !entry.actions) return false;
+    var a = entry.actions[name]; if (!a) return false;
+    try{
+      var prev = entry.actions[entry.current];
+      if (prev) prev.fadeOut(0.2);
+      a.reset().fadeIn(0.2).play();
+      entry.current = a._clip.name;
+      if (holdMs) entry.ff30HoldUntil = performance.now() + holdMs;
+      return true;
+    }catch(e){ return false; }
+  },
   cars: modelledCars, // 2.4.0: live list for the GTA camera's vehicle collision
   get backpackOn(){ return backpackOn; },
   setBackpack: function(v){ backpackOn = !!v; if (backpackGroup) backpackGroup.visible = backpackOn; return backpackOn; },

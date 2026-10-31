@@ -207,7 +207,7 @@ window.FFAudio = {
       // 2.6.0: the old rate reached 2.24x (0.7+24*0.05, x1.18 police) — a pure
       // whine. Now capped at 1.25x, police only 1.05x, van/truck deeper 0.82x,
       // and the file itself is lowpassed (engine-soft.mp3).
-      var kf = (kind === 'police' || kind === 'ambulance') ? 1.05 : (kind === 'van' || kind === 'truck') ? 0.82 : 1.0;
+      var kf = (kind === 'police' || kind === 'ambulance') ? 1.05 : (kind === 'van' || kind === 'truck') ? 0.82 : (kind === 'tractor') ? 0.62 : 1.0; // 3.0.0: tractor diesel rumble
       try{ L.el.playbackRate = Math.min(1.25, (0.8 + sp * 0.018) * kf); }catch(e){}
       L.base = 0.03 + Math.min(sp, 24) * 0.0025; loopVol(L, effVol(L.base));
     } else { fadeLoop('engine', 0, 300); }

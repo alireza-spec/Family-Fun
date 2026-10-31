@@ -15,12 +15,30 @@ var QUESTS=[
   reward:{money:60,xp:25}},
  {id:'friends',title:'دوست‌های جدید',steps:[
    {id:'talk-3',text:'با ۳ شخصیت مختلف حرف بزن',target:{type:'talkAny',count:3}}],
-  reward:{money:50,happy:10,xp:30}}
+  reward:{money:50,happy:10,xp:30}},
+ {id:'delivery',title:'پیک شهر',steps:[
+   {id:'d-talk',text:'با علیرضا (بوتیک) حرف بزن',target:{type:'talk',npc:'alireza'}},
+   {id:'d-job',text:'یک شیفت پیک انجام بده',target:{type:'job'}},
+   {id:'d-talk2',text:'با بهارک در کافه حرف بزن',target:{type:'talk',npc:'baharak'}}],
+  reward:{money:80,xp:35}},
+ {id:'pro',title:'حرفه‌ای شهر',steps:[
+   {id:'p-job1',text:'یک شیفت کاری انجام بده',target:{type:'job'}},
+   {id:'p-job2',text:'یک شیفت دیگر انجام بده',target:{type:'job'}},
+   {id:'p-talk',text:'با محمد (بیمارستان) حرف بزن',target:{type:'talk',npc:'mohammad'}}],
+  reward:{money:100,xp:50}},
+ {id:'citylife',title:'زندگی در شهر',steps:[
+   {id:'c-talk5',text:'با ۵ شخصیت مختلف حرف بزن',target:{type:'talkAny',count:5}},
+   {id:'c-cafe',text:'وارد کافه شو',target:{type:'enter',loc:'cafe'}}],
+  reward:{money:70,happy:15,xp:40}}
 ];
 var JOBS=[
  {id:'cafe',label:'شیفت کافه',pay:30,energy:15,time:60},
  {id:'library',label:'شیفت کتابخانه',pay:25,energy:10,time:60},
- {id:'garage',label:'شیفت گاراژ',pay:40,energy:20,time:90}
+ {id:'garage',label:'شیفت گاراژ',pay:40,energy:20,time:90},
+ {id:'taxi',label:'راننده تاکسی 🚕',pay:50,energy:15,time:75},
+ {id:'delivery',label:'پیک موتوری/ماشینی 📦',pay:45,energy:15,time:60},
+ {id:'gardener',label:'باغبان پارک 🌳',pay:30,energy:10,time:45},
+ {id:'firefighter',label:'آتش‌نشان 🚒',pay:55,energy:20,time:90}
 ];
 var state={current:0,done:[],step:0,talked:{},talkedCount:0};
 function cur(){ return QUESTS[state.current]||null; }

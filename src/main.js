@@ -68,6 +68,7 @@ const SCRIPTS = [
   './game/quiet27.js', // 2.7.0: quiet text (small interact pill, name-tag fade, compact HUD text) — loaded last so its CSS wins
   './game/perf28.js', // 2.8.0: performance + smoothness (shadow follow, FPS meter) — loads last, wraps only
   './game/ambient23.js', // 2.3.0: random non-looping ambient events + surface footsteps
+  './game/city30.js', // 3.0.0: big rebuild layer (houses, GLB nature, dogs, coins, dynamic marker, rain) — loads last, wraps only
 ];
 
 const SCRIPT_TIMEOUT_MS = 8000;
@@ -145,7 +146,7 @@ async function boot() {
     window.FFBootDone = true;
     const loading = document.getElementById('loading-screen');
     if (loading) loading.style.display = 'none';
-    console.log('[Family Fun 2.4.0] all game scripts loaded, Three bundled via Vite');
+    console.log('[Family Fun 3.0.0] all game scripts loaded, Three bundled via Vite');
   } catch (e) {
     clearTimeout(watchdog);
     window.FFBootFailed = true;

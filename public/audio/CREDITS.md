@@ -91,3 +91,32 @@ and distinct stone/tile footsteps are still open items, not claimed here.
 - `siren-soft.mp3` (+ `.mp3.b64`): derivative of the 2.2.0 CC0 siren — lowpass 1500 Hz, volume 0.6, 0.4 s fades. Measured: mean -19.3 dB / max -16.9 dB (was -13.4 / -11.0 dB).
 - `engine-soft.mp3` (+ `.mp3.b64`): derivative of the 2.2.0 CC0 engine — lowpass 800 Hz, volume 0.85. Measured: mean -16.4 dB / max -6.6 dB.
 - No new recordings were downloaded in 2.6.0: the harshness was in pitch (engine rate up to 2.24x), levels, stacking and the lack of fades/distance attenuation, not in missing files. The horn file itself peaks at 0.0 dB, so it is capped to ~1.3 s with a fade-out instead of being replaced (no verified softer CC0 horn was found in this round).
+
+## 3.0.0 — Derived variants (honest labelling)
+Freesound's search page returned HTTP 403 to the fetch tool in this round
+and Wikimedia Commons audio search returned no usable files, so NO new
+recorded sounds are claimed in 3.0.0. Instead, four small ffmpeg
+derivatives of already-verified CC0 recordings were made (same licence
+as their sources, processed, not new recordings):
+
+| File | Made from | Processing |
+|---|---|---|
+| `engine-tractor.mp3` | engine-soft.mp3 (2.6.0 CC0 engine, lowpassed) | atempo 0.62, lowpass 450 Hz — diesel rumble |
+| `engine-truck.mp3` | engine-soft.mp3 | atempo 0.78, lowpass 600 Hz — truck pass-by ambient event |
+| `footstep-stone.mp3` | footstep-grass.mp3 (verified CC0 footstep) | highpass 900 Hz, atempo 1.12 — pavement steps |
+| `footstep-wood.mp3` | footstep-grass.mp3 | lowpass 900 Hz, atempo 0.85 — indoor wood steps |
+
+Surface footsteps now use real files per surface (grass/stone/wood)
+instead of rate-only variants. Engine pitch by vehicle class in audio.js:
+police/ambulance 1.05, van/truck 0.82, tractor 0.62, car 1.0 (all capped
+at 1.25x, soft mix 2.6.0 kept).
+
+## 3.0.0 — Honest gaps (not faked)
+- No dog bark, phone ring, or separate truck-diesel recording was
+  verified in this round (Freesound blocked, Commons empty), so the pet
+  corgi is SILENT (it wags/walks, it does not bark) and no ring tone is
+  claimed. A bark/ring file can drop in later as audio/dog-bark.mp3 with
+  no code change beyond the ambient event list.
+- No separate CC0 sedan/taxi/police/bus GLB files exist in the verified
+  mirror (all 404); taxi and police are paint/livery variants of real
+  Kenney bodies, and the bus prop was cut (see models CREDITS).

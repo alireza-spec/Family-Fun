@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Family Fun 2.8.0 — بازی سه‌بعدی زندگی خانوادگی و شهر باز، فارسی و راست‌چین">
+<meta name="description" content="Family Fun 3.0.0 — بازی سه‌بعدی زندگی خانوادگی و شهر باز، فارسی و راست‌چین">
 <meta name="theme-color" content="#0f0f1e">
-<title>Family Fun 2.8.0 — Open City Edition</title>
+<title>Family Fun 3.0.0 — Open City Edition</title>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;900&display=swap');
@@ -246,7 +246,7 @@ body{overflow:hidden;font-family:'Vazirmatn',sans-serif;background:#000;touch-ac
 <div id="start-screen">
   <img src="textures/logo.png" alt="Family Fun" style="width:min(86vw,420px);height:auto;margin-bottom:10px;filter:drop-shadow(0 14px 28px rgba(0,0,0,.35));">
   <div class="start-logo">🏘️ خانه ما</div>
-  <div class="start-sub">شهر کوچک ما — نسخه‌ی جهان‌باز</div>
+  <div class="start-sub">شهر بزرگ ما — نسخه‌ی جهان‌باز ۳٫۰٫۰</div>
   <div class="start-form">
     <label>اسمت چیه؟</label>
     <input type="text" id="username" placeholder="مثلاً علیرضا یا سبا" maxlength="14">
@@ -343,10 +343,11 @@ body{overflow:hidden;font-family:'Vazirmatn',sans-serif;background:#000;touch-ac
 <div id="fade"></div>
 
 <!-- Loading screen shown while Three.js loads -->
-<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#0f0f1e;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:'Vazirmatn',sans-serif;">
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#0f0f1e url('textures/menu-bg.jpg') center/cover no-repeat;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:'Vazirmatn',sans-serif;text-shadow:0 2px 10px #000;">
   <div style="font-size:48px;margin-bottom:16px;animation:spin 2s linear infinite">⚙️</div>
   <div style="font-size:18px;font-weight:700;margin-bottom:8px;">در حال بارگذاری...</div>
-  <div id="load-status" style="font-size:13px;opacity:.5;">لطفاً صبر کنید</div>
+  <div id="load-status" style="font-size:13px;opacity:.8;">لطفاً صبر کنید</div>
+  <div style="font-size:12px;opacity:.75;margin-top:10px;">نسخه ۳٫۰٫۰ — شهر بزرگ، شخصیت‌های واقعی، سگ خانگی 🐶</div>
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </div>
 

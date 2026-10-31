@@ -4,7 +4,7 @@
 // ════════════════════════════════════
 const C = {
   SPEED:5, SPRINT:1.85, CAM_DIST:3.2, CAM_H:1.9, CAM_TILT:0.85,
-  CAM_LAG:0.08, WORLD:40, NPC_SPEED:1.3, INTERACT:2.4,
+  CAM_LAG:0.08, WORLD:72, NPC_SPEED:1.3, INTERACT:2.4,
 };
 
 // ════════════════════════════════════
@@ -1370,6 +1370,7 @@ function animate(){
   try{ if(window.FFGameplayUpdate) window.FFGameplayUpdate(performance.now()); }catch(e){ console.warn('gameplay update',e); }
   try{ if(window.FFParticles) window.FFParticles.update(dt); }catch(e){ console.warn('particles',e); }
   try{ if(window.FFGraphics) window.FFGraphics.update(dt,t); }catch(e){ console.warn('graphics',e); }
+  try{ if(window.FFGTAUpdate) window.FFGTAUpdate(dt,t); }catch(e){ console.warn('gta update',e); }
   drawMinimap();
   if(window.FFRender) window.FFRender(); else renderer.render(scene,camera);
 }

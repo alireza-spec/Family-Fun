@@ -125,12 +125,17 @@ window.FFAudio = {
   door: function(){ play('door', 0.7); },
   coin: function(){ play('coin', 0.7); },
   horn: function(){ play('horn', 0.8); },
-  setEngine: function(on, speed){
+  // 2.3.0 engine variants: kind changes the base pitch — regular car 1.0,
+  // van/truck 0.75 (deeper), police/ambulance 1.18 (higher, urgent).
+  // Same verified recording, different pitch — no second engine file was
+  // verified CC0 in this round, so this is a pitch variant, not a new file.
+  setEngine: function(on, speed, kind){
     if (!unlocked) unlock(); var L = loops.engine; if (!L) return;
     if (on){
       if (L.el.paused){ L.el.volume = 0; var p = L.el.play(); if (p && p.catch) p.catch(function(){}); }
       var sp = Math.abs(speed || 0);
-      try{ L.el.playbackRate = Math.min(2, 0.7 + sp * 0.05); }catch(e){}
+      var kf = (kind === 'police' || kind === 'ambulance') ? 1.18 : (kind === 'van' || kind === 'truck') ? 0.75 : 1.0;
+      try{ L.el.playbackRate = Math.min(2, (0.7 + sp * 0.05) * kf); }catch(e){}
       L.base = 0.05 + Math.min(sp, 24) * 0.004; L.el.volume = effVol(L.base);
     } else { fadeLoop('engine', 0, 300); }
   },

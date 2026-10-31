@@ -226,8 +226,17 @@ function enterCar(car){
   if (!window.playerGroup) return;
   driving = car; driveHeading = car.heading; driveSpeed = 0;
   car.group.userData.driver = true;
-  window.playerGroup.visible = false;
-  if (window.playerBody) window.playerBody.visible = false;
+  // 2.3.0: door sound + short enter step (not an instant teleport pop).
+  try{ if (window.FFAudio) window.FFAudio.door(); }catch(e){}
+  var pg = window.playerGroup;
+  setTimeout(function(){
+    if (driving === car && pg){
+      pg.visible = false;
+      // Keep the 2.3.0 GLB player hidden with the group; the capsule
+      // body is only re-shown on exit if no GLB model replaced it.
+      if (window.playerBody) window.playerBody.visible = false;
+    }
+  }, 250);
   if (car.police && state.wanted < 5) { state.wanted = Math.min(5, state.wanted + 1); save(); toast('🚔 ماشین پلیس را برداشتی! تحت تعقیب شدی'); }
   else toast('🚘 سوار شدی — WASD رانندگی | Space ترمز دستی | E پیاده شدن | R تعمیر در گاراژ');
   unlock('firstDrive', 'اولین رانندگی');
@@ -238,7 +247,10 @@ function exitCar(){
   driving.group.userData.driver = false;
   window.playerGroup.position.set(c.x + 2, 0, c.z + 2);
   window.playerGroup.visible = true;
-  if (window.playerBody) window.playerBody.visible = true;
+  // 2.3.0: if a GLB player model replaced the capsule, do NOT re-show
+  // the capsule (that would draw two characters at once).
+  if (window.playerBody && !(window.FFModels && window.FFModels.player)) window.playerBody.visible = true;
+  try{ if (window.FFAudio) window.FFAudio.door(); }catch(e){}
   driving = null; driveSpeed = 0;
   toast('🚶 پیاده شدی');
 }
@@ -373,7 +385,9 @@ function update(dt, t){
     if (driving.fuel <= 0) driveSpeed = Math.min(driveSpeed, 3);
     var steer = (right ? 1 : 0) - (left ? 1 : 0);
     if (Math.abs(joy.x) > 0.15) steer = joy.x; // 2.2.0: analogue joystick steering
-    var steerRate = (hand ? 1.6 : 0.9 + Math.abs(driveSpeed) * 0.02) * grip * (hand ? 0.6 : 1);
+    // 2.3.0 speed-dependent steering: sharper at low speed, calmer at
+    // high speed (no twitchy steering at 60 km/h, no sluggish turn at 5).
+    var steerRate = (hand ? 1.6 : (1.35 / (1 + Math.abs(driveSpeed) * 0.045))) * grip * (hand ? 0.6 : 1);
     driveHeading += steer * dt * steerRate * (driveSpeed >= 0 ? 1 : -1);
     driving.heading = driveHeading;
     driving.group.rotation.y = driveHeading;
@@ -404,7 +418,22 @@ function update(dt, t){
     window.playerGroup.position.copy(driving.group.position);
     window.playerGroup.visible = false;
     if (window.playerBody) window.playerBody.visible = false;
-    if (window.FFAudio) window.FFAudio.setEngine(true, Math.abs(driveSpeed));
+    if (window.FFAudio) window.FFAudio.setEngine(true, Math.abs(driveSpeed), driving.kind);
+    // 2.3.0: real car-car contact while driving (was only building blocks).
+    cars.forEach(function(other){
+      if (other === driving) return;
+      var dx = driving.group.position.x - other.group.position.x;
+      var dz = driving.group.position.z - other.group.position.z;
+      var d = Math.sqrt(dx*dx + dz*dz);
+      if (d < 3.4 && d > 0.01 && Math.abs(driveSpeed) > 2){
+        driveSpeed *= -0.3;
+        driving.health = Math.max(0, driving.health - 9);
+        if (driving.health <= 0) { toast('💥 ماشین خراب شد! با R در گاراژ تعمیرش کن (یا پیاده شو)'); driveSpeed = 0; }
+        offence('تصادف');
+        driving.group.position.x += dx / d * 0.6;
+        driving.group.position.z += dz / d * 0.6;
+      }
+    });
   }
   // --- Traffic ---
   var phase = lightPhase(t);

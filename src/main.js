@@ -1,4 +1,4 @@
-// Family Fun 2.2.0 — Vite entry point.
+// Family Fun 2.3.0 — Vite entry point.
 // Three.js is bundled by Vite (npm `three`), so the built game has NO CDN
 // dependency at runtime. Legacy game code stays as classic scripts (public/game/)
 // because it relies on shared globals (scene, playerGroup, initGame, …);
@@ -13,11 +13,16 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import './hud.css';
 import './nextgen.css';
 import './world-overhaul.css';
 
 window.THREE = THREE;
+// 2.3.0: GLB loading for real character/car models (bundled, NOT a CDN).
+window.FFGLTFLoader = GLTFLoader;
+window.FFSkeletonUtils = SkeletonUtils;
 
 // Bloom composer factory used by public/game/graphics.js (FFRender hook).
 // Created lazily after initGame, only when quality=high (bloom on).
@@ -55,6 +60,9 @@ const SCRIPTS = [
   './game/gta-story.js',
   './game/landscape-hud.js',
   './game/engine22.js', // 2.2.0: renderer/props/cars/characters upgrade layer (loads last, wraps only)
+  './game/logic23.js', // 2.3.0: colliders / camera-collision helpers
+  './game/models23.js', // 2.3.0: real GLB characters/cars + phone/backpack props (fallback mandatory)
+  './game/ambient23.js', // 2.3.0: random non-looping ambient events + surface footsteps
 ];
 
 const SCRIPT_TIMEOUT_MS = 8000;
@@ -132,11 +140,11 @@ async function boot() {
     window.FFBootDone = true;
     const loading = document.getElementById('loading-screen');
     if (loading) loading.style.display = 'none';
-    console.log('[Family Fun 2.2.0] all game scripts loaded, Three bundled via Vite');
+    console.log('[Family Fun 2.3.0] all game scripts loaded, Three bundled via Vite');
   } catch (e) {
     clearTimeout(watchdog);
     window.FFBootFailed = true;
-    console.error('[Family Fun 2.2.0] boot failed', e, bootErrors);
+    console.error('[Family Fun 2.3.0] boot failed', e, bootErrors);
     const detail = e.message + (bootErrors.length ? ' | خطای مرورگر: ' + bootErrors[0] : '');
     showBootError('خطا در بارگذاری بازی', detail);
   } finally {

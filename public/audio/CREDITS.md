@@ -59,3 +59,30 @@ exact binary above, and the game decodes it to a blob URL at runtime
 if they are ever uploaded through the browser they will be used directly.
 No sound or image is faked: every `.b64` file decodes byte-for-byte to the
 verified file listed above.
+
+## 2.3.0 — Random non-looping ambient events (new files, all CC0)
+
+The 2.2.0 city/birds loops are kept only as a very quiet bed. The new
+system (`public/game/ambient23.js`) fires REAL one-shot events at random
+intervals (4–15 s, random volume) instead of one repeating loop:
+
+| File | Freesound | Source | License |
+|---|---|---|---|
+| `ambient-bird1.mp3` | 182507, "Bird chirp" by swiftoid | https://freesound.org/s/182507/ | CC0 |
+| `ambient-crows.mp3` | 673545, "American Crows" by deadrobotmusic | https://freesound.org/s/673545/ | CC0 |
+| `ambient-crowd.mp3` | 786178, "Inside crowd" by haushinka.spl | https://freesound.org/s/786178/ | CC0 |
+| `ambient-doorbell.mp3` | 203941, "DoorBell4" by klangkonserve | https://freesound.org/s/203941/ | CC0 |
+
+Plus two events reusing verified 2.2.0 recordings as one-shots (not loops):
+wind gust (`wind.mp3`, swell in/out) and car pass-by (`engine.mp3`, swell
+in/out, stopped after ~9 s). Each event file also ships as `.mp3.b64`.
+
+NOT shipped (honest gaps): no second engine recording, no brake squeak,
+no dog bark, no phone ring, and no separate stone/tile footstep recordings
+were verified with a retrievable preview in this round — the Freesound pages
+for those candidates showed no CC0 line, or the preview could not be
+retrieved. Footstep surfaces in 2.3.0 are therefore rate/volume variants
+of the verified grass recording (grass / pavement / wood-indoor), and the
+engine variant is a pitch factor by vehicle kind (car 1.0, van/truck 0.75,
+police/ambulance 1.18) in `audio.js`. A dog bark, phone ring, brake squeak
+and distinct stone/tile footsteps are still open items, not claimed here.

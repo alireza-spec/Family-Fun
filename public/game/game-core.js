@@ -1307,15 +1307,17 @@ function drawMinimap(){
 // MAIN LOOP
 // ════════════════════════════════════
 let walkT=0;
+// 2.3.0: smooth movement state — acceleration curves, jump physics, lean.
+let ffCurSpeed=0, ffJumpVy=0, ffJumping=false, ffPrevYaw=0, ffLastMoveX=0, ffLastMoveZ=0;
 
 function animate(){
   requestAnimationFrame(animate);
   if(!isGameRunning)return;
   const dt=Math.min(clock.getDelta(),0.05);
   const t=clock.getElapsedTime();
+  const drivingNow = !!(window.FFGTA && window.FFGTA.driving);
 
   if(!isBlock){
-    const speed=C.SPEED*(isSprint?C.SPRINT:1)*dt;
     const fwd=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw); // 2.2.0 JOYSTICK FIX: camera looks along +(sin,cos), so forward MUST be (0,0,1) rotated — the old (0,0,-1) pointed at the camera, so joystick-up/W walked toward the viewer (reversed). Right vector (1,0,0) rotated was already screen-right, so only forward/back was flipped.
     const rgt=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw);
     let mx=moveX,my=moveY;
@@ -1329,18 +1331,36 @@ function animate(){
     const moving=mv.length()>0.1;
 
     if(moving){
-      mv.normalize().multiplyScalar(speed);
-      playerGroup.position.add(mv);
-      playerBody.rotation.y=Math.atan2(mv.x,mv.z);
+      // 2.3.0 acceleration curve: no instant full speed, smooth stop.
+      const targetSpeed=C.SPEED*(isSprint?C.SPRINT:1);
+      ffCurSpeed += (targetSpeed - ffCurSpeed) * Math.min(1, dt * 8);
+      mv.normalize().multiplyScalar(ffCurSpeed*dt);
+      // 2.3.0 real collision: slide along walls instead of passing through.
+      const px=playerGroup.position.x, pz=playerGroup.position.z;
+      if(window.FFLogic){
+        const res=window.FFLogic.resolveMove(px, pz, px+mv.x, pz+mv.z, 0.55);
+        playerGroup.position.x=res.x; playerGroup.position.z=res.z;
+      } else {
+        playerGroup.position.add(mv);
+      }
+      const newYaw=Math.atan2(mv.x,mv.z);
+      // 2.3.0 body lean into turns (turn speed depends on speed).
+      let dYaw=newYaw-ffPrevYaw; while(dYaw>Math.PI)dYaw-=Math.PI*2; while(dYaw<-Math.PI)dYaw+=Math.PI*2;
+      playerBody.rotation.y=newYaw;
+      playerBody.rotation.z=Math.max(-0.18,Math.min(0.18,-dYaw*Math.min(1,ffCurSpeed/C.SPEED)*0.6));
+      ffPrevYaw=newYaw;
+      ffLastMoveX=mv.x; ffLastMoveZ=mv.z;
       walkT+=dt*(isSprint?14:9);
       if(window.FFFootstep && (!window._ffLastStep || t-window._ffLastStep>0.38)){ window._ffLastStep=t; window.FFAudio&&window.FFAudio.footstep(); window.FFFootstep(playerGroup.position.x,playerGroup.position.z); }
       const sw=Math.sin(walkT)*0.48;
-      playerBody.getObjectByName('leftLeg').rotation.x=sw;
-      playerBody.getObjectByName('rightLeg').rotation.x=-sw;
-      playerBody.getObjectByName('leftArm').rotation.x=-sw*0.55;
-      playerBody.getObjectByName('rightArm').rotation.x=sw*0.55;
+      const ll=playerBody.getObjectByName('leftLeg'); if(ll)ll.rotation.x=sw;
+      const rl=playerBody.getObjectByName('rightLeg'); if(rl)rl.rotation.x=-sw;
+      const la=playerBody.getObjectByName('leftArm'); if(la)la.rotation.x=-sw*0.55;
+      const ra=playerBody.getObjectByName('rightArm'); if(ra)ra.rotation.x=sw*0.55;
       playerBody.position.y=Math.abs(Math.sin(walkT))*0.035;
     } else {
+      ffCurSpeed += (0 - ffCurSpeed) * Math.min(1, dt * 10);
+      playerBody.rotation.z *= 0.85;
       // idle breathing (instead of a frozen pose)
       playerBody.position.y=Math.sin(t*1.8)*0.012;
       ['leftLeg','rightLeg','leftArm','rightArm'].forEach(n=>{
@@ -1349,7 +1369,21 @@ function animate(){
     }
     playerGroup.position.x=Math.max(-C.WORLD,Math.min(C.WORLD,playerGroup.position.x));
     playerGroup.position.z=Math.max(-C.WORLD,Math.min(C.WORLD,playerGroup.position.z));
-    playerGroup.position.y=0;
+    // 2.3.0 jump (on foot only, Space): gravity + landing, no teleport.
+    if(!drivingNow && (k['Space'] || k['SpaceKey']) && !ffJumping && playerGroup.position.y<=0.01){
+      ffJumping=true; ffJumpVy=5.6;
+    }
+    if(ffJumping){
+      ffJumpVy -= 14*dt;
+      playerGroup.position.y += ffJumpVy*dt;
+      if(playerGroup.position.y<=0){ playerGroup.position.y=0; ffJumpVy=0; ffJumping=false; }
+    } else if(!moving){
+      playerGroup.position.y=0;
+    } else {
+      // Walking on ground: keep the bob from above, do not force y=0
+      // while the jump arc is in flight (handled above).
+      if(playerGroup.position.y<0) playerGroup.position.y=0;
+    }
   }
 
   // ── سیستم دوربین جدید و پیشرفته ──
@@ -1366,14 +1400,27 @@ function animate(){
     );
     camera.lookAt(targetVector);
   } else {
-    // حالت سوم شخص اصلاح شده کامپکت تا از سقف خارج نشود
-    const cd = C.CAM_DIST;
+    // 2.3.0 follow camera: smoothed, look-ahead in movement direction,
+    // wider/farther while driving, and wall-collision pull-in so the
+    // camera never clips through a building behind the player.
+    let cd = C.CAM_DIST;
+    let ch = C.CAM_H;
+    if(drivingNow){ cd = C.CAM_DIST * 1.45; ch = C.CAM_H * 1.25; }
+    if(window.FFLogic){
+      cd = window.FFLogic.cameraDistance(playerGroup.position.x, playerGroup.position.y, playerGroup.position.z, camYaw, cd, ch);
+    }
     const tx = playerGroup.position.x - Math.sin(camYaw) * cd;
-    const ty = playerGroup.position.y + C.CAM_H;
+    const ty = playerGroup.position.y + ch * (cd / (drivingNow ? C.CAM_DIST * 1.45 : C.CAM_DIST));
     const tz = playerGroup.position.z - Math.cos(camYaw) * cd;
-    
+
     camera.position.lerp(new THREE.Vector3(tx, ty, tz), C.CAM_LAG);
-    camera.lookAt(playerGroup.position.x, playerGroup.position.y + 0.9, playerGroup.position.z);
+    // Look-ahead: aim slightly in the direction of travel, not at the feet.
+    const la = 1.1;
+    camera.lookAt(
+      playerGroup.position.x + ffLastMoveX * la * 8,
+      playerGroup.position.y + 0.9,
+      playerGroup.position.z + ffLastMoveZ * la * 8
+    );
   }
 
   updateNPCs(dt,t);
@@ -1418,7 +1465,19 @@ function updateNPCs(dt,t){
     const dist=dir.length();
     if(dist>0.5){
       dir.normalize().multiplyScalar(C.NPC_SPEED*dt);
-      npc.position.add(dir);
+      // 2.3.0: peds do not walk through the player or through buildings.
+      const nx=npc.position.x+dir.x, nz=npc.position.z+dir.z;
+      if(window.FFLogic){
+        const res=window.FFLogic.resolveMove(npc.position.x, npc.position.z, nx, nz, 0.5);
+        npc.position.x=res.x; npc.position.z=res.z;
+      } else {
+        npc.position.add(dir);
+      }
+      if(playerGroup){
+        const pdx=npc.position.x-playerGroup.position.x, pdz=npc.position.z-playerGroup.position.z;
+        const pd=Math.sqrt(pdx*pdx+pdz*pdz);
+        if(pd<0.9 && pd>0.001){ npc.position.x=playerGroup.position.x+pdx/pd*0.9; npc.position.z=playerGroup.position.z+pdz/pd*0.9; }
+      }
       npc.lookAt(ud.target.x,npc.position.y,ud.target.z);
       const wt=t*9+ud.walkOff;
       const body=ud.body;

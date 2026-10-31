@@ -183,6 +183,11 @@ window.FFCamera24 = {
     var camera = window.camera; if (!camera || !o || !o.pos) return;
     camModeButton();
     dt = Math.min(Math.max(dt || 0.016, 0.001), 0.05);
+    // 2.8.0 SPIKE-PROOF DELTA: one slow frame (GC, texture decode) must
+    // not yank the camera — damping uses an exponentially smoothed dt
+    // (converges at ~4/s) instead of the raw, spiky frame delta.
+    st.dtSm = st.dtSm === undefined ? dt : st.dtSm + (dt - st.dtSm) * Math.min(1, dt * 4);
+    var sdt = st.dtSm;
     var driving = !!o.driving;
     var mp = MODES[camMode25] || MODES.follow;
     var cfg = driving ? mp.drive : mp.foot;
@@ -199,12 +204,12 @@ window.FFCamera24 = {
       targetYaw = window.FFGTA.driving.heading;
     }
     if (!st.init) st.yaw = targetYaw;
-    else st.yaw += shortArc(targetYaw - st.yaw) * damp(5, dt);
+    else st.yaw += shortArc(targetYaw - st.yaw) * damp(5, sdt);
     var sy = Math.sin(st.yaw), cy = Math.cos(st.yaw);
     // Velocity (for look-ahead) from the player's own movement.
     if (st.prevPos){
       var vx = (px - st.prevPos.x) / dt, vz = (pz - st.prevPos.z) / dt;
-      var k = damp(6, dt);
+      var k = damp(6, sdt);
       st.velX += (vx - st.velX) * k; st.velZ += (vz - st.velZ) * k;
     }
     st.prevPos = {x: px, z: pz};
@@ -228,11 +233,20 @@ window.FFCamera24 = {
     var frac = okDist / dist;
     var hy = py + Math.max(height * (0.55 + 0.45 * frac), 1.9);
     desired = {x: px - sy * okDist + (-cy) * side * frac, y: hy, z: pz - cy * okDist + sy * side * frac};
+    // 2.8.0: smooth speed-based FOV widening while driving (was a fixed
+    // driving FOV — a step when entering a car) + a very subtle bob:
+    // suspension tremble in a car, gentle head-bob on foot. Both are
+    // pure position offsets — no extra meshes, no extra draw calls.
+    if (driving) fovT = fovT + Math.min(4, speed * 0.12);
+    var _nowS = performance.now() / 1000;
+    var _bob = driving ? Math.sin(_nowS * 9) * 0.03 * Math.min(1, speed / 10)
+                       : Math.sin(_nowS * 10) * 0.02 * Math.min(1, speed / 4);
     var lookT = {
       x: px + lax,
-      y: py + (driving ? 1.4 : 1.45),
+      y: py + (driving ? 1.4 : 1.45) + _bob,
       z: pz + laz
     };
+    desired.y += _bob;
     if (!st.init){
       camera.position.set(desired.x, desired.y, desired.z);
       camera.lookAt(lookT.x, lookT.y, lookT.z);
@@ -242,7 +256,7 @@ window.FFCamera24 = {
       st.init = true;
       return;
     }
-    var kp = damp(6, dt), kl = damp(8, dt);
+    var kp = damp(6, sdt), kl = damp(8, sdt);
     camera.position.x += (desired.x - camera.position.x) * kp;
     camera.position.y += (desired.y - camera.position.y) * kp;
     camera.position.z += (desired.z - camera.position.z) * kp;
@@ -251,7 +265,7 @@ window.FFCamera24 = {
     st.look.z += (lookT.z - st.look.z) * kl;
     camera.lookAt(st.look.x, st.look.y, st.look.z);
     if (Math.abs(camera.fov - fovT) > 0.05){
-      camera.fov += (fovT - camera.fov) * damp(4, dt);
+      camera.fov += (fovT - camera.fov) * damp(4, sdt);
       camera.updateProjectionMatrix();
     }
   }

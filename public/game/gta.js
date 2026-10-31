@@ -313,7 +313,7 @@ function build(){
   if (built || !window.scene || !window.isGameRunning) return;
   built = true;
   try {
-    var roadMat = mat(0x2a2d33, {tex: 'asphalt', roughness: 0.92, rx: 2, ry: 20});
+    var roadMat = mat(0x2a2d33, {tex: 'asphalt', roughness: 0.65, rx: 2, ry: 20}); // 2.8.0 wet-look sheen
     var road = function(x, z, w, d){
       var m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), roadMat);
       m.rotation.x = -Math.PI / 2; m.position.set(x, 0.02, z); m.receiveShadow = true; window.scene.add(m);
@@ -432,7 +432,14 @@ function update(dt, t){
     // 2.5.0 STEERING SIGN: car forward F=(sin h, cos h); dF/dh=(cos,-sin)
     // = -screen-right, so turning screen-RIGHT needs heading to DECREASE.
     // The old '+=' therefore steered right when the player pushed left.
-    driveHeading -= steer * dt * steerRate * (driveSpeed >= 0 ? 1 : -1);
+    // 2.8.0 STEERING EASE: the wheel angle eases toward the input (fast
+    // attack 14/s, gentle return 7/s) instead of snapping with it, and
+    // the same smoothed value drives the indicators below.
+    var _sm = window._ffSteerSm28 || 0;
+    var _srate = Math.abs(steer) > Math.abs(_sm) ? 14 : 7;
+    _sm += (steer - _sm) * Math.min(1, dt * _srate);
+    window._ffSteerSm28 = _sm;
+    driveHeading -= _sm * dt * steerRate * (driveSpeed >= 0 ? 1 : -1);
     driving.heading = driveHeading;
     driving.group.rotation.y = driveHeading;
     var nx = driving.group.position.x + Math.sin(driveHeading) * driveSpeed * dt;
@@ -476,7 +483,7 @@ function update(dt, t){
       if (ud.brake) ud.brake.forEach(function(m){ m.material.emissiveIntensity = brake ? 3 : 0.4; });
       var blink = Math.floor(t * 3) % 2 === 0;
       if (ud.ind){
-        var st = steer || 0;
+        var st = window._ffSteerSm28 || 0;
         ud.ind[0].material.emissiveIntensity = (st < -0.1 && blink) ? 2.5 : 0.3;
         ud.ind[1].material.emissiveIntensity = (st > 0.1 && blink) ? 2.5 : 0.3;
       }

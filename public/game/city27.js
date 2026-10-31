@@ -50,7 +50,7 @@ function add(){
           window.FFLogic.colliders.push([x, z, hx, hz, h]);
       }catch(e){}
     }
-    var asphalt = mat(0x2a2d33, {tex: 'asphalt', roughness: 0.92});
+    var asphalt = mat(0x2a2d33, {tex: 'asphalt', roughness: 0.65}); // 2.8.0 wet-look sheen
     var walk = mat(0xc9bba6, {tex: 'sidewalk', roughness: 0.85});
     var white = new T.MeshStandardMaterial({color: 0xf2f2e8, roughness: 0.7});
     var curbM = new T.MeshStandardMaterial({color: 0x3a3f46, roughness: 0.9});
@@ -142,7 +142,7 @@ function add(){
     trunks.instanceMatrix.needsUpdate = true;
     trunks.castShadow = true;
     S.add(trunks);
-    fols.forEach(function(f){ f.instanceMatrix.needsUpdate = true; f.castShadow = true; S.add(f); });
+    fols.forEach(function(f){ f.instanceMatrix.needsUpdate = true; f.castShadow = false; S.add(f); }); // 2.8.0: instanced foliage casts no shadow (trunks still do)
 
     /* --- Lamp posts along the new roads (emissive only) --- */
     var poleM = new T.MeshStandardMaterial({color: 0x25313d, metalness: 0.5, roughness: 0.5});
@@ -150,7 +150,7 @@ function add(){
     for (var lz = -36; lz <= 36; lz += 12){
       [[-29.2, lz], [29.2, lz]].forEach(function(p){
         var pole = new T.Mesh(new T.CylinderGeometry(0.07, 0.1, 3.4, 8), poleM);
-        pole.position.set(p[0], 1.7, p[1]); pole.castShadow = true; S.add(pole);
+        pole.position.set(p[0], 1.7, p[1]); pole.castShadow = false; S.add(pole);
         var bulb = new T.Mesh(new T.SphereGeometry(0.18, 10, 8), bulbM);
         bulb.position.set(p[0], 3.5, p[1]); S.add(bulb);
       });
@@ -164,12 +164,12 @@ function add(){
     var benchM = mat(0x8a5a32, {tex: 'wood'});
     [[-25, 24], [-15, 24], [-25, 28], [-15, 28]].forEach(function(p){
       var seat = new T.Mesh(new T.BoxGeometry(1.8, 0.1, 0.5), benchM);
-      seat.position.set(p[0], 0.5, p[1]); seat.castShadow = true; S.add(seat);
+      seat.position.set(p[0], 0.5, p[1]); seat.castShadow = false; S.add(seat);
     });
     var bloom = [0xe91e63, 0xffeb3b, 0xff7043, 0xffffff];
     [[-23, 25], [-17, 27]].forEach(function(p, pi){
       var bed = new T.Mesh(new T.BoxGeometry(2.2, 0.4, 1.1), new T.MeshStandardMaterial({color: 0x4a3220, roughness: 1}));
-      bed.position.set(p[0], 0.2, p[1]); bed.castShadow = true; S.add(bed);
+      bed.position.set(p[0], 0.2, p[1]); bed.castShadow = false; S.add(bed);
       for (var fi = 0; fi < 4; fi++){
         var f = new T.Mesh(new T.SphereGeometry(0.16, 8, 6), new T.MeshStandardMaterial({color: bloom[(pi + fi) % 4], roughness: 0.6}));
         f.position.set(p[0] - 0.75 + fi * 0.5, 0.5, p[1]); S.add(f);

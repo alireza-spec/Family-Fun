@@ -32,18 +32,18 @@ function add(){
     var curb = new T.MeshStandardMaterial({color: 0x3a3f46, roughness: 0.9});
     [-5.1, 5.1].forEach(function(x){
       var m = new T.Mesh(new T.BoxGeometry(0.3, 0.14, 76), curb);
-      m.position.set(x, 0.07, 0); m.castShadow = true; S.add(m);
+      m.position.set(x, 0.07, 0); m.castShadow = false; S.add(m); // 2.8.0: flat curb stones cast no shadow
     });
     // Flower planters flanking the plaza approach (colour, not flat grass).
     var soil = new T.MeshStandardMaterial({color: 0x4a3220, roughness: 1});
     var bloom = [0xe91e63, 0xffeb3b, 0xff7043, 0xffffff];
     [[-6, 26], [6, 26], [-6, -26], [6, -26]].forEach(function(p, pi){
       var b = new T.Mesh(new T.BoxGeometry(2.2, 0.4, 1.1), soil);
-      b.position.set(p[0], 0.2, p[1]); b.castShadow = true; S.add(b);
+      b.position.set(p[0], 0.2, p[1]); b.castShadow = false; S.add(b);
       for (var i = 0; i < 4; i++){
         var f = new T.Mesh(new T.SphereGeometry(0.16, 8, 6),
           new T.MeshStandardMaterial({color: bloom[(pi + i) % bloom.length], roughness: 0.6}));
-        f.position.set(p[0] - 0.75 + i * 0.5, 0.5, p[1]); f.castShadow = true; S.add(f);
+        f.position.set(p[0] - 0.75 + i * 0.5, 0.5, p[1]); f.castShadow = false; S.add(f);
       }
     });
     // Neon-style district signs on posts at the two main junctions.
@@ -58,10 +58,10 @@ function add(){
         var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace;
         var board = new T.Mesh(new T.PlaneGeometry(4.4, 1.1),
           new T.MeshStandardMaterial({map: tex, emissive: 0x0e7490, emissiveIntensity: 0.35, emissiveMap: tex}));
-        board.position.set(x, 3.4, z); board.rotation.y = rotY; board.castShadow = true; S.add(board);
+        board.position.set(x, 3.4, z); board.rotation.y = rotY; board.castShadow = false; S.add(board);
         var pole = new T.Mesh(new T.CylinderGeometry(0.09, 0.11, 3.0, 8),
           new T.MeshStandardMaterial({color: 0x25313d, metalness: 0.5, roughness: 0.5}));
-        pole.position.set(x, 1.5, z); pole.castShadow = true; S.add(pole);
+        pole.position.set(x, 1.5, z); pole.castShadow = false; S.add(pole);
       }catch(e){}
     }
     neon('مرکز شهر', -7, -7, Math.PI / 4);

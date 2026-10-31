@@ -112,7 +112,7 @@ window.FFTextures={
         function applyFile(ft){
           ft.colorSpace=THREE.SRGBColorSpace; ft.wrapS=ft.wrapT=THREE.RepeatWrapping;
           ft.repeat.set(opts.rx||1,opts.ry||1);
-          try{ ft.anisotropy=Math.min(8, (window.renderer?window.renderer.capabilities.getMaxAnisotropy():4)); }catch(e){}
+          try{ ft.anisotropy=Math.min((window.FFQuality && window.FFQuality.current === 'high') ? 8 : 4, (window.renderer?window.renderer.capabilities.getMaxAnisotropy():4)); }catch(e){}
           matRef.map=ft; matRef.bumpMap=ft; matRef.needsUpdate=true;
         }
         new THREE.TextureLoader().load(FILETEX[texName], applyFile, undefined, function(){

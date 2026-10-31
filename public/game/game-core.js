@@ -624,7 +624,7 @@ function buildGround(){
   var groundMat=T?T.material(0x4a7c59,'grass',{roughness:0.95,rx:24,ry:24}):mat(0x4a7c59,{roughness:0.95});
   const g=new THREE.Mesh(new THREE.PlaneGeometry(200,200),groundMat);
   g.rotation.x=-Math.PI/2;g.receiveShadow=true;scene.add(g);
-  var roadMat=T?T.material(0x2a2d33,'asphalt',{roughness:0.92,rx:2,ry:20}):mat(0x2a2a2a,{roughness:0.9});
+  var roadMat=T?T.material(0x2a2d33,'asphalt',{roughness:0.65,rx:2,ry:20}):mat(0x2a2a2a,{roughness:0.9}); // 2.8.0: subtle wet-look sheen (was flat 0.92)
   [[0,0.02,0,6,80],[80,0.02,0,80,6]].forEach(([x,y,z,w,d])=>{
     const r=new THREE.Mesh(new THREE.PlaneGeometry(w,d),roadMat);
     r.rotation.x=-Math.PI/2;r.position.set(x,y,z);r.receiveShadow=true;scene.add(r);
@@ -951,7 +951,7 @@ function updateTag(obj,tag){
   if(camDist > 12){ tag.style.display='none'; return; }
   // Opacity: 0.85 close, fading to ~0.25 at 12 units.
   var op = camDist <= 4 ? 0.85 : 0.85 * (1 - (camDist - 4) / 8 * 0.7);
-  const p=obj.position.clone();p.y+=2.05;p.project(camera); // 2.5.0: 1.8-unit player, tag just above the head
+  const p=(window._ffTagTmp||(window._ffTagTmp=new THREE.Vector3())).copy(obj.position);p.y+=2.05;p.project(camera); // 2.5.0: 1.8-unit player, tag just above the head; 2.8.0: no per-tag clone
   const x=(p.x*.5+.5)*innerWidth, y=(-p.y*.5+.5)*innerHeight;
   if(p.z<1&&x>0&&x<innerWidth&&y>0&&y<innerHeight){
     tag.style.display='flex';tag.style.left=x+'px';tag.style.top=y+'px';
@@ -1258,12 +1258,12 @@ function setupControls(){
     const dist=Math.min(Math.hypot(dx,dy),50);
     const angle=Math.atan2(dy,dx);
     knob.style.transform=`translate(-50%,-50%) translate(${Math.cos(angle)*dist}px,${Math.sin(angle)*dist}px)`;
-    moveX=Math.max(-1,Math.min(1,dx/50));moveY=Math.max(-1,Math.min(1,dy/50));
-    if(Math.abs(moveX)<0.15)moveX=0; if(Math.abs(moveY)<0.15)moveY=0;
-    window.FFJoy={x:moveX,y:moveY}; // 2.2.0: driving code (gta.js / gameplay-overhaul) reads this, so the joystick works in a car too
+    var rx=Math.max(-1,Math.min(1,dx/50)), ry=Math.max(-1,Math.min(1,dy/50));
+    if(Math.abs(rx)<0.15)rx=0; if(Math.abs(ry)<0.15)ry=0;
+    window._ffJoyRaw={x:rx,y:ry}; // 2.8.0: raw target only — animate() smooths moveX/moveY toward it, so finger tremble never jitters the character
   },{passive:false});
-  zone.addEventListener('touchend',()=>{knob.style.transform='translate(-50%,-50%)';moveX=0;moveY=0;window.FFJoy={x:0,y:0};});
-  zone.addEventListener('touchcancel',()=>{knob.style.transform='translate(-50%,-50%)';moveX=0;moveY=0;window.FFJoy={x:0,y:0};});
+  zone.addEventListener('touchend',()=>{knob.style.transform='translate(-50%,-50%)';window._ffJoyRaw={x:0,y:0};});
+  zone.addEventListener('touchcancel',()=>{knob.style.transform='translate(-50%,-50%)';window._ffJoyRaw={x:0,y:0};});
 
   let px=0,pid=-1;
   document.addEventListener('touchstart',e=>{
@@ -1370,11 +1370,20 @@ function animate(){
     // direction projected on XZ, right = forward x up (Three's camera
     // right). Joystick-up = forward, joystick-right = screen-right, and
     // WASD uses the same basis, so keys and joystick can never disagree.
-    var fwd=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw);
+    // 2.8.0: reused temp vectors (was 3 fresh Vector3 allocations per frame)
+    // + joystick smoothing: fast attack (18/s) so input stays responsive,
+    // gentle release (8/s) so letting go eases out instead of snapping.
+    var fwd=(window._ffTmpFwd||(window._ffTmpFwd=new THREE.Vector3())).set(0,0,1).applyAxisAngle(window._ffTmpUp||(window._ffTmpUp=new THREE.Vector3(0,1,0)),camYaw);
     try{
       if(camera){ camera.getWorldDirection(fwd); fwd.y=0; if(fwd.lengthSq()>0.001) fwd.normalize(); else fwd.set(Math.sin(camYaw),0,Math.cos(camYaw)); }
     }catch(e){}
-    var rgt=new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0,1,0));
+    var rgt=(window._ffTmpRgt||(window._ffTmpRgt=new THREE.Vector3())).crossVectors(fwd, window._ffTmpUp);
+    if(window._ffJoyRaw){
+      var _at=Math.abs(window._ffJoyRaw.x)>Math.abs(moveX)||Math.abs(window._ffJoyRaw.y)>Math.abs(moveY)?18:8;
+      var _k=Math.min(1,dt*_at);
+      moveX+=(window._ffJoyRaw.x-moveX)*_k; moveY+=(window._ffJoyRaw.y-moveY)*_k;
+      window.FFJoy={x:moveX,y:moveY};
+    }
     let mx=moveX,my=moveY;
     const k=window._keys||{};
     if(k['KeyW']||k['ArrowUp'])my=-1;
@@ -1382,7 +1391,7 @@ function animate(){
     if(k['KeyA']||k['ArrowLeft'])mx=-1;
     if(k['KeyD']||k['ArrowRight'])mx=1;
 
-    const mv=new THREE.Vector3().addScaledVector(fwd,-my).addScaledVector(rgt,mx);
+    const mv=(window._ffTmpMv||(window._ffTmpMv=new THREE.Vector3())).set(0,0,0).addScaledVector(fwd,-my).addScaledVector(rgt,mx);
     const moving=mv.length()>0.1;
 
     if(moving){
@@ -1442,19 +1451,20 @@ function animate(){
       if(window.FFFootstep && ((ffPrevWalkSin>0 && ws<=0) || (ffPrevWalkSin<0 && ws>=0))){ window.FFAudio&&window.FFAudio.footstep(); window.FFFootstep(playerGroup.position.x,playerGroup.position.z); }
       ffPrevWalkSin=ws;
       const sw=Math.sin(walkT)*0.48;
-      const ll=playerBody.getObjectByName('leftLeg'); if(ll)ll.rotation.x=sw;
-      const rl=playerBody.getObjectByName('rightLeg'); if(rl)rl.rotation.x=-sw;
-      const la=playerBody.getObjectByName('leftArm'); if(la)la.rotation.x=-sw*0.55;
-      const ra=playerBody.getObjectByName('rightArm'); if(ra)ra.rotation.x=sw*0.55;
+      // 2.8.0: cached limb refs (was 4 subtree searches per frame)
+      var _pl=(window._ffPL&&window._ffPL.body===playerBody)?window._ffPL.limbs:(window._ffPL={body:playerBody,limbs:{ll:playerBody.getObjectByName('leftLeg'),rl:playerBody.getObjectByName('rightLeg'),la:playerBody.getObjectByName('leftArm'),ra:playerBody.getObjectByName('rightArm')}}).limbs;
+      if(_pl.ll)_pl.ll.rotation.x=sw;
+      if(_pl.rl)_pl.rl.rotation.x=-sw;
+      if(_pl.la)_pl.la.rotation.x=-sw*0.55;
+      if(_pl.ra)_pl.ra.rotation.x=sw*0.55;
       playerBody.position.y=Math.abs(Math.sin(walkT))*0.035;
     } else {
-      ffCurSpeed += (0 - ffCurSpeed) * Math.min(1, dt * 10);
+      ffCurSpeed += (0 - ffCurSpeed) * Math.min(1, dt * 6); // 2.8.0: softer ease-out stop (was dt*10 instant-feeling halt)
       playerBody.rotation.z *= 0.85;
       // idle breathing (instead of a frozen pose)
       playerBody.position.y=Math.sin(t*1.8)*0.012;
-      ['leftLeg','rightLeg','leftArm','rightArm'].forEach(n=>{
-        const o=playerBody.getObjectByName(n);if(o)o.rotation.x*=0.82;
-      });
+      var _pl2=(window._ffPL&&window._ffPL.body===playerBody)?window._ffPL.limbs:(window._ffPL={body:playerBody,limbs:{ll:playerBody.getObjectByName('leftLeg'),rl:playerBody.getObjectByName('rightLeg'),la:playerBody.getObjectByName('leftArm'),ra:playerBody.getObjectByName('rightArm')}}).limbs;
+      [_pl2.ll,_pl2.rl,_pl2.la,_pl2.ra].forEach(o=>{if(o)o.rotation.x*=0.82;});
     }
     playerGroup.position.x=Math.max(-C.WORLD,Math.min(C.WORLD,playerGroup.position.x));
     playerGroup.position.z=Math.max(-C.WORLD,Math.min(C.WORLD,playerGroup.position.z));
@@ -1517,10 +1527,15 @@ function animate(){
 
   updateNPCs(dt,t);
 
-  updateTag(playerGroup,playerGroup.userData.tag);
-  npcs.forEach(n=>updateTag(n,n.userData.tag));
-
-  checkInteractions();
+  // 2.8.0 DOM THROTTLE: name tags every 2nd frame, interact scan every
+  // 2nd frame — a 1-frame-old tag/button is invisible, a per-frame DOM
+  // write for 25 tags is not. Minimap (below) runs every 6th frame.
+  window._ffFrame28=(window._ffFrame28||0)+1;
+  if(window._ffFrame28%2===0){
+    updateTag(playerGroup,playerGroup.userData.tag);
+    npcs.forEach(n=>updateTag(n,n.userData.tag));
+    checkInteractions();
+  }
   updateParticles(dt);
 
   if(worldObjs.tv) worldObjs.tv.material.emissiveIntensity=0.25+Math.sin(t*2.2)*0.08+Math.sin(t*7.1)*0.04;
@@ -1531,7 +1546,7 @@ function animate(){
   try{ if(window.FFParticles) window.FFParticles.update(dt); }catch(e){ console.warn('particles',e); }
   try{ if(window.FFGraphics) window.FFGraphics.update(dt,t); }catch(e){ console.warn('graphics',e); }
   try{ if(window.FFGTAUpdate) window.FFGTAUpdate(dt,t); }catch(e){ console.warn('gta update',e); }
-  drawMinimap();
+  if(window._ffFrame28%6===0) drawMinimap(); // 2.8.0: minimap at ~10fps, not 60fps
   if(window.FFRender) window.FFRender(); else renderer.render(scene,camera);
 }
 
@@ -1542,6 +1557,16 @@ function updateNPCs(dt,t){
   npcs.forEach((npc,i)=>{
     const ud=npc.userData;
     if(ud.talking)return;
+    // 2.8.0 NPC LOD: >45 units = quarter rate, 25-45 = half rate, near = full.
+    // Far NPCs stepping at 15fps is invisible at that distance; updating
+    // all 24 + their limb searches every frame was not.
+    var _dNpc=0;
+    try{ if(playerGroup) _dNpc=Math.hypot(npc.position.x-playerGroup.position.x,npc.position.z-playerGroup.position.z); }catch(e){}
+    var _lod=_dNpc>45?4:(_dNpc>25?2:1);
+    ud._lod28=(ud._lod28||0)+1;
+    if(ud._lod28%_lod!==0) return;
+    // 2.8.0: cached limb refs (was 4-8 subtree searches per NPC per frame)
+    if(!ud.limbs||ud.limbsBody!==ud.body){ ud.limbsBody=ud.body; ud.limbs={ll:ud.body.getObjectByName('leftLeg'),rl:ud.body.getObjectByName('rightLeg'),la:ud.body.getObjectByName('leftArm'),ra:ud.body.getObjectByName('rightArm')}; }
     ud.waitTime-=dt;
     if(ud.waitTime<=0){
       const home=ud.homePos;
@@ -1584,16 +1609,12 @@ function updateNPCs(dt,t){
       ud.smoothYaw += ndy * Math.min(1, dt*6);
       npc.rotation.y=ud.smoothYaw;
       const wt=t*9+ud.walkOff;
-      const body=ud.body;
-      body.getObjectByName('leftLeg').rotation.x=Math.sin(wt)*0.42;
-      body.getObjectByName('rightLeg').rotation.x=Math.sin(wt+Math.PI)*0.42;
-      body.getObjectByName('leftArm').rotation.x=-Math.sin(wt)*0.25;
-      body.getObjectByName('rightArm').rotation.x=Math.sin(wt)*0.25;
+      if(ud.limbs.ll)ud.limbs.ll.rotation.x=Math.sin(wt)*0.42;
+      if(ud.limbs.rl)ud.limbs.rl.rotation.x=Math.sin(wt+Math.PI)*0.42;
+      if(ud.limbs.la)ud.limbs.la.rotation.x=-Math.sin(wt)*0.25;
+      if(ud.limbs.ra)ud.limbs.ra.rotation.x=Math.sin(wt)*0.25;
     } else {
-      const body=ud.body;
-      ['leftLeg','rightLeg','leftArm','rightArm'].forEach(n=>{
-        const o=body.getObjectByName(n);if(o)o.rotation.x*=0.8;
-      });
+      [ud.limbs.ll,ud.limbs.rl,ud.limbs.la,ud.limbs.ra].forEach(o=>{if(o)o.rotation.x*=0.8;});
     }
   });
 }

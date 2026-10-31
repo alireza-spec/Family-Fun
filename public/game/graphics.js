@@ -36,14 +36,14 @@ window.FFGraphics={
     var day=Math.max(0,Math.sin((hour-6)/13*Math.PI));
     var night=1-day;
     var sun=window.worldObjs.sun;
-    sun.intensity=0.25+day*1.15;
-    sun.color.setHSL(0.08,0.6,0.55+day*0.15);
+    sun.intensity=0.28+day*1.12;
+    sun.color.setHSL(0.085,0.68,0.55+day*0.13); // 2.8.0: warmer, more saturated sun — less flat grey-green
     var ang=(hour/24)*Math.PI*2-Math.PI/2;
     sun.position.set(Math.cos(ang)*60,Math.max(12,Math.sin(ang)*70),30);
     if(window.scene.background && window.scene.background.setHSL)
-      window.scene.background.setHSL(0.57,0.5,0.12+day*0.45);
+      window.scene.background.setHSL(0.57,0.55,0.13+day*0.44);
     if(window.scene.fog){
-      window.scene.fog.color.setHSL(0.58,0.35,0.14+day*0.42);
+      window.scene.fog.color.setHSL(0.56,0.42,0.15+day*0.42); // 2.8.0: richer, warmer haze
       window.scene.fog.density=0.010+night*0.006;
     }
     // sky shader from world-overhaul, if present. Cached once found; the

@@ -216,8 +216,18 @@ function loop(){
   lastLoopT = now;
   // Mixers (player + NPCs): drive Walk/Run/Idle from position delta.
   try{
+    // 2.8.0 MIXER LOD: the player is always full rate; NPC mixers farther
+    // than 25 units update every 2nd frame (dt*2) and farther than 45
+    // every 4th frame (dt*4) — same total animation time, a quarter of
+    // the skeleton work for distant characters.
+    var _mf = (window._ffMixFrame = (window._ffMixFrame || 0) + 1);
     mixers.forEach(function(entry){
-      if (entry.mixer) entry.mixer.update(dt);
+      if (!entry.mixer) return;
+      var _d = 0;
+      try{ if (entry.wrapper && window.playerGroup) _d = Math.hypot(entry.wrapper.position.x - window.playerGroup.position.x, entry.wrapper.position.z - window.playerGroup.position.z); }catch(e){}
+      var _step = _d > 45 ? 4 : (_d > 25 ? 2 : 1);
+      if (_mf % _step !== 0) return;
+      entry.mixer.update(dt * _step);
     });
   }catch(e){}
   try{

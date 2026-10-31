@@ -20,7 +20,7 @@ function mat(color, opts){
 }
 function box(w, h, d, material, x, y, z, parent){
   var m = new T().Mesh(new T().BoxGeometry(w, h, d), material);
-  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+  m.position.set(x, y, z); m.castShadow = false; m.receiveShadow = true; // 2.8.0: small props cast no shadow — shadow pass only for real casters
   (parent || window.scene).add(m); return m;
 }
 function applyRenderer(){
@@ -28,7 +28,7 @@ function applyRenderer(){
     var r = window.renderer; if (!r) return;
     r.shadowMap.type = T().PCFSoftShadowMap; // was PCFShadowMap: softer, less blocky shadows
     try{ r.outputColorSpace = T().SRGBColorSpace; }catch(e){}
-    r.toneMappingExposure = 1.15;
+    r.toneMappingExposure = 1.22; // 2.8.0: slightly warmer/filmic (was flat 1.15)
     var sun = window.worldObjs && window.worldObjs.sun;
     if (sun && sun.shadow){
       sun.shadow.camera.left = -85; sun.shadow.camera.right = 85;
@@ -37,9 +37,11 @@ function applyRenderer(){
       sun.shadow.camera.updateProjectionMatrix();
       if (sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map = null; }
     }
-    // Anisotropy on every texture so roads/grass stay sharp at grazing angles.
+    // Anisotropy: 8 only on High, 4 otherwise — 8x anisotropic filtering
+    // on every 512px texture is pure GPU cost on a phone screen.
     try{ var maxA = r.capabilities.getMaxAnisotropy();
-      window.scene.traverse(function(o){ if (o.material && o.material.map) o.material.map.anisotropy = Math.min(8, maxA); });
+      var capA = (window.FFQuality && window.FFQuality.current === 'high') ? 8 : 4;
+      window.scene.traverse(function(o){ if (o.material && o.material.map) o.material.map.anisotropy = Math.min(capA, maxA); });
     }catch(e){}
   }catch(e){ console.warn('engine22 renderer', e); }
 }
@@ -66,11 +68,11 @@ function addProps(){
     });
     [[-4, 34], [10, 40], [-20, -12], [24, 20]].forEach(function(p){
       var bin = new T().Mesh(new T().CylinderGeometry(0.32, 0.28, 0.8, 10), dark);
-      bin.position.set(p[0], 0.4, p[1]); bin.castShadow = true; S.add(bin);
+      bin.position.set(p[0], 0.4, p[1]); bin.castShadow = false; S.add(bin);
     });
     [[-2, 36], [18, 42]].forEach(function(p){
       var h = new T().Mesh(new T().CylinderGeometry(0.18, 0.22, 0.7, 8), red);
-      h.position.set(p[0], 0.35, p[1]); h.castShadow = true; S.add(h);
+      h.position.set(p[0], 0.35, p[1]); h.castShadow = false; S.add(h);
     });
     // Bus stop shelter near the plaza.
     var shelter = new T().Group(); shelter.position.set(6, 0, 30);
@@ -83,7 +85,7 @@ function addProps(){
         t.colorSpace = T().SRGBColorSpace;
         var board = new T().Mesh(new T().PlaneGeometry(6, 3.6),
           new T().MeshStandardMaterial({ map: t, roughness: 0.7 }));
-        board.position.set(-28, 3.4, 34); board.rotation.y = Math.PI / 4; board.castShadow = true; S.add(board);
+        board.position.set(-28, 3.4, 34); board.rotation.y = Math.PI / 4; board.castShadow = false; S.add(board);
         box(0.25, 2.2, 0.25, dark, -28, 1.1, 34, S);
       }, undefined, function(){
         b64Blob('textures/menu-bg.jpg.b64', 'image/jpeg', function(u){
@@ -91,7 +93,7 @@ function addProps(){
             t.colorSpace = T().SRGBColorSpace;
             var board = new T().Mesh(new T().PlaneGeometry(6, 3.6),
               new T().MeshStandardMaterial({ map: t, roughness: 0.7 }));
-            board.position.set(-28, 3.4, 34); board.rotation.y = Math.PI / 4; board.castShadow = true; S.add(board);
+            board.position.set(-28, 3.4, 34); board.rotation.y = Math.PI / 4; board.castShadow = false; S.add(board);
           });
         });
       });
@@ -125,6 +127,11 @@ function upgradeCars(){
               (o.userData.ff22Wheels = o.userData.ff22Wheels || []).push(c);
             }
           });
+          // 2.8.0: cache upgraded cars once — the per-frame and per-second
+          // loops below used to scene.traverse the WHOLE world to find
+          // these few cars. Never again.
+          (window.FF22TailCars = window.FF22TailCars || []).push(o);
+          if (o.userData.ff22Wheels && o.userData.ff22Wheels.length) (window.FF22WheelCars = window.FF22WheelCars || []).push(o);
         }
       });
       if (tries > 30) clearInterval(timer);
@@ -166,18 +173,27 @@ function hook(){
           var wEl = document.getElementById('ff-gta-wanted');
           if (wEl) wanted = (wEl.textContent.match(/★/g) || []).length;
           if (window.FFAudio) {
-            // 2.6.0: nearest police light distance (scene traverse, 1/sec) —
-            // the siren must fade with distance, never blast at full volume.
+            // 2.6.0: nearest police light distance — 2.8.0: read the
+            // FFGTA police list directly instead of traversing the scene.
             var pDist = undefined;
             try{
-              if (window.playerGroup && window.scene) {
+              if (window.playerGroup) {
                 var best = 1e9;
-                window.scene.traverse(function(o){
-                  if (o.userData && o.userData.siren) {
-                    var d = Math.hypot(o.position.x - window.playerGroup.position.x, o.position.z - window.playerGroup.position.z);
+                var pol = (window.FFGTA && window.FFGTA.policeCars) || [];
+                if (pol.length){
+                  pol.forEach(function(car){
+                    var g = car.group || car; if (!g || !g.position) return;
+                    var d = Math.hypot(g.position.x - window.playerGroup.position.x, g.position.z - window.playerGroup.position.z);
                     if (d < best) best = d;
-                  }
-                });
+                  });
+                } else if (window.scene) {
+                  window.scene.traverse(function(o){
+                    if (o.userData && o.userData.siren) {
+                      var d = Math.hypot(o.position.x - window.playerGroup.position.x, o.position.z - window.playerGroup.position.z);
+                      if (d < best) best = d;
+                    }
+                  });
+                }
                 if (best < 1e8) pDist = best;
               }
             }catch(e){}
@@ -195,8 +211,8 @@ function hook(){
             window.FF22SunGlow.position.copy(sun.position).normalize().multiplyScalar(88);
             window.FF22SunGlow.material.opacity = Math.min(0.85, Math.max(0, sun.intensity - 0.2) * 0.5);
           }
-          // Spin car wheels on moving GTA cars (rotation.x on cylinder wheels).
-          if (window.scene) window.scene.traverse(function(o){
+          // Spin car wheels on moving GTA cars — 2.8.0: cached list, no traverse.
+          (window.FF22WheelCars || []).forEach(function(o){
             if (o.userData && o.userData.ff22Wheels && o.userData.gtaCar){
               o.userData.ff22Wheels.forEach(function(w){ w.rotateOnAxis(new T().Vector3(0, 1, 0), 0.25); }); // spin around the cylinder's own axis (local Y), not an Euler angle — Euler spin would wobble the wheel
             }
@@ -213,9 +229,9 @@ function hook(){
       window.FFGTAUpdate = function(dt, t){
         gtaOld(dt, t);
         try{
-          if (window.scene) window.scene.traverse(function(o){
+          // 2.8.0: iterate the cached car list (~10 cars), not the scene.
+          (window.FF22TailCars || []).forEach(function(o){
             if (o.userData && o.userData.ff22Tail && o.userData.gtaCar){
-              // Brighten taillights when the car is the driven one and slowing: proxy via speed text is unavailable, so pulse gently at night.
               o.userData.ff22Tail.material.emissiveIntensity = 0.8 + Math.sin(t * 3) * 0.15;
             }
           });

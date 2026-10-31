@@ -12,7 +12,7 @@ function init(){
   // version badge on start screen
   var start=document.getElementById('start-screen');
   if(start && !document.getElementById('ff-version')){
-    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۷٫۰ — دوربین نزدیک + نوشته‌های آرام + شهر پر';
+    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۸٫۰ — روان و بدون لگ + حس جی‌تی‌ای';
     start.appendChild(v);
   }
   // continue button if an autosave exists

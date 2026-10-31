@@ -124,6 +124,12 @@ function play(name, vol, rate){
   try{
     var src = blobURLs[name] || FILES[name];
     var a = new Audio(src);
+    // 2.8.0: cap simultaneous one-shots at 8 — overlapping footsteps,
+    // ambient bursts and UI clicks used to stack decodes and stutter.
+    if ((window._ffOneShots || 0) >= 8) return;
+    window._ffOneShots = (window._ffOneShots || 0) + 1;
+    a.addEventListener('ended', function(){ window._ffOneShots = Math.max(0, (window._ffOneShots || 1) - 1); });
+    setTimeout(function(){ window._ffOneShots = Math.max(0, (window._ffOneShots || 1) - 1); }, 4000); // safety net if 'ended' never fires
     var targetVol = effVol(vol === undefined ? 0.7 : vol);
     a.volume = 0; // 2.6.0: fade in over ~80ms — no click/pop attack, nothing starts at full blast
     if (rate) a.playbackRate = rate;

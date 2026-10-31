@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 260" role="img" aria-label="Family Fun City">
+  <defs><linearGradient id="b" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#16243a"/><stop offset="1" stop-color="#273c5a"/></linearGradient><linearGradient id="a" x1="0" x2="1"><stop stop-color="#6be0ba"/><stop offset="1" stop-color="#75aeff"/></linearGradient><filter id="g"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <rect x="9" y="9" width="702" height="202" rx="35" fill="url(#b)" stroke="#b9d8f6" stroke-opacity=".56" stroke-width="4"/>
+  <path d="M37 175H683" stroke="url(#a)" stroke-width="12" stroke-linecap="round"/>
+  <g fill="#eaf6ff"><path d="M72 143V91h28v52h-9v-22H81v22zM113 143V63h32v80h-10v-25h-12v25zm10-36h12V74h-12zM160 143V82h28v61h-10v-22h-8v22zM201 143V102h33v41h-10v-20h-13v20z" opacity=".9"/></g>
+  <circle cx="610" cy="85" r="27" fill="#ffe1a2" filter="url(#g)"/><path d="M560 139c19-26 42-26 62 0 18-18 39-16 58 0v18H560z" fill="#80b8ed" opacity=".6"/>
+  <text x="360" y="104" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="48" font-weight="800" letter-spacing="5">FAMILY FUN</text>
+  <text x="360" y="145" text-anchor="middle" fill="#a9c9e6" font-family="Arial, sans-serif" font-size="20" letter-spacing="7">OPEN CITY DISTRICT</text>
+  <circle cx="54" cy="49" r="7" fill="#6be0ba" filter="url(#g)"/>
+</svg>

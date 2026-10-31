@@ -1,0 +1,58 @@
+/* Family Fun 2.0 — unified HUD skin (Phase 4).
+   One glass style for quest panel, slots panel and chips. Safe-area aware,
+   responsive on small screens, and honouring prefers-reduced-motion. */
+.ff-glass{
+  background:linear-gradient(140deg,rgba(9,18,31,.86),rgba(24,35,54,.62));
+  border:1px solid rgba(184,219,255,.24);
+  box-shadow:0 12px 36px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.06);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  color:#eef5ff;font-family:Vazirmatn,Arial,sans-serif;border-radius:16px;
+}
+#ff-version{margin-top:10px;font-size:11px;opacity:.55;color:#fff;text-align:center}
+#ff-continue{margin-top:6px;background:linear-gradient(135deg,#44c8a0,#2b7fd4)!important;color:#fff!important}
+#ff-slots-panel{
+  position:fixed;inset:auto 16px 110px auto;z-index:400;width:min(300px,88vw);
+  padding:14px 16px;display:none;direction:rtl;
+}
+#ff-slots-panel b{display:block;margin-bottom:10px}
+#ff-slots-panel button{
+  font-family:Vazirmatn,Arial,sans-serif;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:9px;
+  padding:6px 10px;margin:2px;cursor:pointer;font-size:12px;
+}
+.ff-slot-row{display:flex;align-items:center;gap:6px;margin:4px 0}
+.ff-slot-row span{flex:1;font-size:12px}
+.ff-file-label{cursor:pointer}
+#ff-quest-panel{
+  position:fixed;right:18px;top:112px;z-index:28;width:min(272px,calc(100vw - 36px));
+  padding:13px 15px;direction:rtl;
+}
+#ff-quest-panel .ffq-title{font-weight:900;font-size:14px;color:#fff;margin-bottom:4px}
+#ff-quest-panel .ffq-copy{font-size:11px;line-height:1.7;color:#c3d0df}
+.ff-job-btn{
+  display:block;width:100%;margin-top:6px;padding:8px 10px;text-align:right;
+  font-family:Vazirmatn,Arial,sans-serif;font-size:11px;color:#fff;
+  background:rgba(255,209,102,.14);border:1px solid rgba(255,209,102,.4);
+  border-radius:10px;cursor:pointer;
+}
+#ff-money-label{color:#fff}
+/* safe area: keep joystick / action buttons clear of phone notches */
+#joystick-zone{bottom:calc(40px + env(safe-area-inset-bottom, 0px))!important}
+#action-btns{bottom:calc(40px + env(safe-area-inset-bottom, 0px))!important}
+#hud{padding-top:env(safe-area-inset-top, 0px)}
+@media(max-width:650px){
+  #ff-quest-panel{right:10px;top:92px;width:215px;padding:10px 12px}
+  #ffw-objective{right:10px!important;top:92px!important;width:215px!important}
+  #minimap{width:88px!important;height:88px!important;top:78px!important}
+  .si{min-width:44px!important}
+  #action-btns{right:12px!important}
+  .acircle{width:48px!important;height:48px!important;font-size:18px!important}
+  #joystick-zone{width:104px!important;height:104px!important;left:20px!important}
+  #ff-slots-panel{bottom:100px}
+}
+.ff-reduced-motion *, .ff-reduced-motion *::before, .ff-reduced-motion *::after{
+  animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+}

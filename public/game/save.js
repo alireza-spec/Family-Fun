@@ -6,7 +6,7 @@
 var KEY='ff-save-v2', dirty=false;
 function collect(){
   var p=window.playerGroup?window.playerGroup.position:null;
-  return {version:'2.0.0',savedAt:new Date().toISOString(),
+  return {version:'2.0.1',savedAt:new Date().toISOString(),
     player:{name:window.pName||'',gender:window.pGender||'male'},
     stats:window.stats?JSON.parse(JSON.stringify(window.stats)):null,
     gameTime:window.gameTime, gameDay:window.gameDay,

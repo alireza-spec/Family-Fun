@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Family Fun 2.0 — بازی سه‌بعدی زندگی خانوادگی و شهر باز، فارسی و راست‌چین">
+<meta name="description" content="Family Fun 2.0.1 — بازی سه‌بعدی زندگی خانوادگی و شهر باز، فارسی و راست‌چین">
 <meta name="theme-color" content="#0f0f1e">
-<title>Family Fun 2.0 — Open City Edition</title>
+<title>Family Fun 2.0.1 — Open City Edition</title>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;900&display=swap');
@@ -350,6 +350,27 @@ body{overflow:hidden;font-family:'Vazirmatn',sans-serif;background:#000;touch-ac
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </div>
 
+
+
+<script>
+(function(){
+  setTimeout(function(){
+    if (window.FFBootDone || window.FFBootFailed) return;
+    var loading = document.getElementById('loading-screen');
+    if (!loading || loading.style.display === 'none') return;
+    var st = document.getElementById('load-status');
+    if (st) { st.textContent = 'بارگذاری بیش از حد طول کشید — احتمالاً نسخه قدیمی سایت کش شده است. روی تلاش مجدد بزن.'; st.style.color = '#ff8888'; }
+    if (!document.getElementById('ff-fallback-retry')) {
+      var b = document.createElement('button');
+      b.id = 'ff-fallback-retry';
+      b.textContent = '🔄 تلاش مجدد';
+      b.style.cssText = 'margin-top:16px;padding:12px 28px;border:none;border-radius:12px;background:#ffd700;color:#1a0a2e;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer';
+      b.onclick = function(){ location.reload(); };
+      loading.appendChild(b);
+    }
+  }, 25000);
+})();
+</script>
 
 <script type="module" src="/src/main.js"></script>
 </body>

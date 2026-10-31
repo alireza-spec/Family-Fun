@@ -363,14 +363,16 @@ function update(dt, t){
   var dlg = document.getElementById('dialog-box');
   if (dlg && dlg.style.display === 'block') dialogOpen = true;
   if (driving && !dialogOpen) {
-    var gas = keys.KeyW || keys.ArrowUp, brake = keys.KeyS || keys.ArrowDown;
-    var left = keys.KeyA || keys.ArrowLeft, right = keys.KeyD || keys.ArrowRight;
+    var joy = (window.FFJoy || {x: 0, y: 0});
+    var gas = keys.KeyW || keys.ArrowUp || joy.y < -0.3, brake = keys.KeyS || keys.ArrowDown || joy.y > 0.3;
+    var left = keys.KeyA || keys.ArrowLeft || joy.x < -0.3, right = keys.KeyD || keys.ArrowRight || joy.x > 0.3;
     var hand = !!keys.Space;
     if (gas) driveSpeed = Math.min(24 * grip, driveSpeed + dt * 14);
     else if (brake) driveSpeed = Math.max(-6, driveSpeed - dt * 16);
     else driveSpeed *= Math.pow(0.25, dt);
     if (driving.fuel <= 0) driveSpeed = Math.min(driveSpeed, 3);
     var steer = (right ? 1 : 0) - (left ? 1 : 0);
+    if (Math.abs(joy.x) > 0.15) steer = joy.x; // 2.2.0: analogue joystick steering
     var steerRate = (hand ? 1.6 : 0.9 + Math.abs(driveSpeed) * 0.02) * grip * (hand ? 0.6 : 1);
     driveHeading += steer * dt * steerRate * (driveSpeed >= 0 ? 1 : -1);
     driving.heading = driveHeading;

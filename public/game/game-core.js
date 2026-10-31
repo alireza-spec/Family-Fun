@@ -1224,9 +1224,12 @@ function setupControls(){
     const dist=Math.min(Math.hypot(dx,dy),50);
     const angle=Math.atan2(dy,dx);
     knob.style.transform=`translate(-50%,-50%) translate(${Math.cos(angle)*dist}px,${Math.sin(angle)*dist}px)`;
-    moveX=dx/50;moveY=dy/50;
+    moveX=Math.max(-1,Math.min(1,dx/50));moveY=Math.max(-1,Math.min(1,dy/50));
+    if(Math.abs(moveX)<0.15)moveX=0; if(Math.abs(moveY)<0.15)moveY=0;
+    window.FFJoy={x:moveX,y:moveY}; // 2.2.0: driving code (gta.js / gameplay-overhaul) reads this, so the joystick works in a car too
   },{passive:false});
-  zone.addEventListener('touchend',()=>{knob.style.transform='translate(-50%,-50%)';moveX=0;moveY=0;});
+  zone.addEventListener('touchend',()=>{knob.style.transform='translate(-50%,-50%)';moveX=0;moveY=0;window.FFJoy={x:0,y:0};});
+  zone.addEventListener('touchcancel',()=>{knob.style.transform='translate(-50%,-50%)';moveX=0;moveY=0;window.FFJoy={x:0,y:0};});
 
   let px=0,pid=-1;
   document.addEventListener('touchstart',e=>{
@@ -1238,14 +1241,14 @@ function setupControls(){
   },{passive:true});
   document.addEventListener('touchmove',e=>{
     for(const t of e.changedTouches){
-      if(t.identifier===pid){camYaw-=(t.clientX-px)*0.004;px=t.clientX;}
+      if(t.identifier===pid){camYaw+=(t.clientX-px)*0.004;px=t.clientX;} // 2.2.0: was -=, which panned the view left when dragging right
     }
   },{passive:true});
   document.addEventListener('touchend',e=>{for(const t of e.changedTouches)if(t.identifier===pid)pid=-1;});
 
   let mdown=false;
   renderer.domElement.addEventListener('mousedown',e=>{if(e.button!==1){mdown=true;renderer.domElement.requestPointerLock?.();}});
-  document.addEventListener('mousemove',e=>{if(mdown||document.pointerLockElement===renderer.domElement){camYaw-=e.movementX*0.003;}});
+  document.addEventListener('mousemove',e=>{if(mdown||document.pointerLockElement===renderer.domElement){camYaw+=e.movementX*0.003;}}); // 2.2.0: same drag-sign fix as touch
   document.addEventListener('mouseup',()=>mdown=false);
   renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 
@@ -1313,7 +1316,7 @@ function animate(){
 
   if(!isBlock){
     const speed=C.SPEED*(isSprint?C.SPRINT:1)*dt;
-    const fwd=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw);
+    const fwd=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw); // 2.2.0 JOYSTICK FIX: camera looks along +(sin,cos), so forward MUST be (0,0,1) rotated — the old (0,0,-1) pointed at the camera, so joystick-up/W walked toward the viewer (reversed). Right vector (1,0,0) rotated was already screen-right, so only forward/back was flipped.
     const rgt=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw);
     let mx=moveX,my=moveY;
     const k=window._keys||{};

@@ -119,7 +119,7 @@ backdrop.id = 'ff-menu-backdrop';
 document.body.appendChild(backdrop);
 var drawer = document.createElement('div');
 drawer.id = 'ff-menu-drawer';
-drawer.innerHTML = '<h3>☰ منوی بازی</h3><div class="ff-drawer-sub">همه‌ی امکانات GTA، شغل‌ها و تنظیمات اینجاست — صفحه‌ی بازی خلوت می‌ماند.</div><div id="ff-drawer-gta"></div><div id="ff-drawer-jobs"></div><div class="ff-sys-row" id="ff-drawer-sys"></div><div class="ff-drawer-sub" style="margin-top:14px">💡 نکته: برای بستن منو، همین دکمه را دوباره بزن یا بیرون از منو ضربه بزن.</div>';
+drawer.innerHTML = '<h3>☰ منوی بازی</h3><div class="ff-drawer-sub">همه‌ی امکانات GTA، شغل‌ها و تنظیمات اینجاست — صفحه‌ی بازی خلوت می‌ماند.</div><div id="ff-drawer-gta"></div><div id="ff-drawer-jobs"></div><div class="ff-sys-row" id="ff-drawer-sys"></div><div style="margin-top:14px"><label style="font-size:12px;opacity:.8">🔊 صدای بازی</label><input id="ff-volume" type="range" min="0" max="100" value="70" style="width:100%;margin-top:6px"></div><div class="ff-drawer-sub" style="margin-top:14px">💡 نکته: برای بستن منو، همین دکمه را دوباره بزن یا بیرون از منو ضربه بزن.</div>';
 document.body.appendChild(drawer);
 function toggleDrawer(force){
   var open = (typeof force === 'boolean') ? force : !drawer.classList.contains('ff-open');
@@ -127,6 +127,12 @@ function toggleDrawer(force){
   backdrop.classList.toggle('ff-open', open);
 }
 backdrop.onclick = function(){ toggleDrawer(false); };
+/* 2.2.0: master volume slider in the drawer (persisted by FFAudio). */
+setTimeout(function(){
+  var vol = document.getElementById('ff-volume');
+  if (vol && window.FFAudio){ vol.value = Math.round(window.FFAudio.volume * 100);
+    vol.addEventListener('input', function(){ window.FFAudio.setVolume(vol.value / 100); }); }
+}, 500);
 
 var menuBtn = document.createElement('div');
 menuBtn.className = 'acircle';

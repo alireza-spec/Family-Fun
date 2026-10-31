@@ -12,7 +12,7 @@ function init(){
   // version badge on start screen
   var start=document.getElementById('start-screen');
   if(start && !document.getElementById('ff-version')){
-    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۱٫۰ — ارتقای حرفه‌ای';
+    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۲٫۰ — ارتقای حرفه‌ای';
     start.appendChild(v);
   }
   // continue button if an autosave exists

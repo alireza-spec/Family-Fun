@@ -1,4 +1,4 @@
-// Family Fun 2.1.0 — Vite entry point.
+// Family Fun 2.2.0 — Vite entry point.
 // Three.js is bundled by Vite (npm `three`), so the built game has NO CDN
 // dependency at runtime. Legacy game code stays as classic scripts (public/game/)
 // because it relies on shared globals (scene, playerGroup, initGame, …);
@@ -54,6 +54,7 @@ const SCRIPTS = [
   './game/gta-city.js',
   './game/gta-story.js',
   './game/landscape-hud.js',
+  './game/engine22.js', // 2.2.0: renderer/props/cars/characters upgrade layer (loads last, wraps only)
 ];
 
 const SCRIPT_TIMEOUT_MS = 8000;
@@ -131,11 +132,11 @@ async function boot() {
     window.FFBootDone = true;
     const loading = document.getElementById('loading-screen');
     if (loading) loading.style.display = 'none';
-    console.log('[Family Fun 2.0.1] all game scripts loaded, Three bundled via Vite');
+    console.log('[Family Fun 2.2.0] all game scripts loaded, Three bundled via Vite');
   } catch (e) {
     clearTimeout(watchdog);
     window.FFBootFailed = true;
-    console.error('[Family Fun 2.0.1] boot failed', e, bootErrors);
+    console.error('[Family Fun 2.2.0] boot failed', e, bootErrors);
     const detail = e.message + (bootErrors.length ? ' | خطای مرورگر: ' + bootErrors[0] : '');
     showBootError('خطا در بارگذاری بازی', detail);
   } finally {

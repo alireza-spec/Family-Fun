@@ -3,7 +3,7 @@
 // CONFIG
 // ════════════════════════════════════
 const C = {
-  SPEED:5, SPRINT:1.85, CAM_DIST:3.2, CAM_H:1.9, CAM_TILT:0.85,
+  SPEED:5, SPRINT:1.85, CAM_DIST:6.8, CAM_H:3.4, CAM_TILT:0.85,
   CAM_LAG:0.08, WORLD:72, NPC_SPEED:1.3, INTERACT:2.4,
 };
 
@@ -578,7 +578,7 @@ function setupThreeJS(){
   scene.background=new THREE.Color(0x87ceeb);
   scene.fog=new THREE.FogExp2(0xc5d9f0,0.012);
 
-  camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,150);
+  camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,0.1,200);
 
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
   renderer.setPixelRatio(Math.min(devicePixelRatio, (window.FFQuality?window.FFQuality.def.pixelRatio:1.5)));
@@ -825,58 +825,76 @@ function createPlayer(){
 }
 
 function buildHumanoid(shirtColor,isFemale,customHair,noHair){
+  // 2.1.0: capsule humanoid (replaces the flat-box body) with the SAME named
+  // joints the core animate() loop and GTA applyLook() expect: torso, head,
+  // leftArm/rightArm, leftLeg/rightLeg. Player and NPCs both use this, so the
+  // capsule look is visible without relying on the character-studio hook.
   const g=new THREE.Group();
   const skin=mat(0xffcc99,{roughness:0.8});
   const shirt=mat(shirtColor,{roughness:0.8});
   const pants=mat(isFemale?0x663399:0x1a1a4a,{roughness:0.9});
-  const hair=mat(customHair||0x1a0a00,{roughness:0.9});
+  const hairM=mat(customHair||0x1a0a00,{roughness:0.9});
   const shoe=mat(0x222,{roughness:0.9});
-
-  const torso=new THREE.Mesh(box(0.42,0.52,0.25),shirt);
-  torso.position.y=0.8;torso.name='torso';torso.castShadow=true;g.add(torso);
-  const neck=new THREE.Mesh(cyl(0.075,0.085,0.11,8),skin);
-  neck.position.y=1.12;neck.castShadow=true;g.add(neck);
-  
-  const head=new THREE.Group();head.position.y=1.36;head.name='head';
-  const hm=new THREE.Mesh(box(0.26,0.27,0.25),skin);hm.castShadow=true;head.add(hm);
+  function capsuleMesh(r,len,material){
+    const m=new THREE.Mesh(new THREE.CapsuleGeometry(r,len,6,16),material);
+    m.castShadow=true; return m;
+  }
+  const torso=capsuleMesh(0.22,0.35,shirt);
+  torso.position.y=0.85; torso.name='torso'; torso.scale.set(1,1,0.72); g.add(torso);
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(0.115,0.025,6,16),mat(0xe6d6ba));
+  collar.position.y=1.15; collar.rotation.x=Math.PI/2; g.add(collar);
+  const neck=new THREE.Mesh(cyl(0.075,0.085,0.12,10),skin);
+  neck.position.y=1.2; neck.castShadow=true; g.add(neck);
+  const head=new THREE.Group(); head.position.y=1.43; head.name='head';
+  const face=new THREE.Mesh(new THREE.SphereGeometry(0.245,16,12),skin);
+  face.scale.set(0.92,1.05,0.86); face.castShadow=true; head.add(face);
+  const eyeM=mat(0x111);
+  [-0.075,0.075].forEach(function(x){
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.028,8,8),eyeM);
+    eye.position.set(x,0.03,0.22); head.add(eye);
+  });
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(0.027,8,6),skin);
+  nose.position.set(0,-0.035,0.245); head.add(nose);
+  const smile=new THREE.Mesh(new THREE.TorusGeometry(0.055,0.012,6,12,Math.PI),mat(0x7b2940));
+  smile.position.set(0,-0.09,0.23); smile.rotation.z=Math.PI; head.add(smile);
   if(!noHair){
-    const hairM=new THREE.Mesh(isFemale?sph(0.165,8):box(0.27,0.09,0.26),hair);
-    hairM.position.y=isFemale?0.03:0.125;head.add(hairM);
     if(isFemale){
-      const longHair=new THREE.Mesh(box(0.25,0.4,0.08),hair);longHair.position.set(0,-0.15,-0.12);head.add(longHair);
+      const cap=new THREE.Mesh(new THREE.SphereGeometry(0.245,16,10,0,Math.PI*2,0,Math.PI*0.62),hairM);
+      cap.name='hairCap'; cap.position.set(0,0.14,-0.01); head.add(cap);
+      const back=new THREE.Mesh(new THREE.SphereGeometry(0.24,14,10),hairM);
+      back.name='hairBack'; back.position.set(0,-0.08,-0.13); back.scale.set(1,1.35,0.48); head.add(back);
+    } else {
+      const cap=new THREE.Mesh(new THREE.SphereGeometry(0.245,16,10,0,Math.PI*2,0,Math.PI*0.6),hairM);
+      cap.name='hairCap'; cap.position.set(0,0.14,0); head.add(cap);
+      for(let i=-2;i<=2;i++){
+        const fr=new THREE.Mesh(new THREE.SphereGeometry(0.06,9,7),hairM);
+        fr.name='fringe'+i; fr.position.set(i*0.075,0.08,0.19); head.add(fr);
+      }
     }
   } else {
     const hijab=new THREE.Mesh(sph(0.18,8),mat(0x111,{roughness:0.9}));
-    hijab.position.y=0.03;head.add(hijab);
-    const hijabDrape=new THREE.Mesh(box(0.32,0.35,0.22),mat(0x111,{roughness:0.9}));
-    hijabDrape.position.set(0,-0.14,-0.04);head.add(hijabDrape);
+    hijab.name='hairCap'; hijab.position.y=0.03; head.add(hijab);
+    const drape=new THREE.Mesh(box(0.32,0.35,0.22),mat(0x111,{roughness:0.9}));
+    drape.position.set(0,-0.14,-0.04); head.add(drape);
   }
-  const eyeM=mat(0x111);
-  const eyeL=new THREE.Mesh(box(0.046,0.036,0.04),eyeM);eyeL.position.set(-0.068,0.018,0.135);head.add(eyeL);
-  const eyeR=eyeL.clone();eyeR.position.x=0.068;head.add(eyeR);
   g.add(head);
-
-  ['leftArm','rightArm'].forEach((nm,i)=>{
-    const ag=new THREE.Group();ag.name=nm;
-    const am=new THREE.Mesh(box(0.115,0.47,0.115),shirt);am.position.y=-0.235;am.castShadow=true;ag.add(am);
-    ag.position.set(i===0?0.295:-0.295,1.06,0);g.add(ag);
+  [['leftArm',0.29],['rightArm',-0.29]].forEach(function(pair){
+    const ag=new THREE.Group(); ag.name=pair[0];
+    const arm=capsuleMesh(0.075,0.34,shirt); arm.position.y=-0.17; ag.add(arm);
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(0.075,10,8),skin);
+    hand.position.y=-0.42; ag.add(hand);
+    ag.position.set(pair[1],1.08,0); ag.rotation.z=pair[1]>0?0.08:-0.08; g.add(ag);
   });
-  [0.295,-0.295].forEach((x,i)=>{
-    const h=new THREE.Mesh(sph(0.07,6),skin);h.position.set(x,0.535,0);h.castShadow=true;g.add(h);
+  [['leftLeg',0.115],['rightLeg',-0.115]].forEach(function(pair){
+    const lg=new THREE.Group(); lg.name=pair[0];
+    const leg=capsuleMesh(0.095,0.38,pants); leg.position.y=-0.19; lg.add(leg);
+    const foot=new THREE.Mesh(box(0.18,0.09,0.3),shoe);
+    foot.position.set(0,-0.45,0.055); lg.add(foot);
+    lg.position.set(pair[1],0.54,0); g.add(lg);
   });
-
-  ['leftLeg','rightLeg'].forEach((nm,i)=>{
-    const lg=new THREE.Group();lg.name=nm;
-    const lm=new THREE.Mesh(box(0.14,0.52,0.14),pants);lm.position.y=-0.26;lm.castShadow=true;lg.add(lm);
-    lg.position.set(i===0?0.115:-0.115,0.54,0);g.add(lg);
-  });
-  [0.115,-0.115].forEach((x)=>{
-    const s=new THREE.Mesh(box(0.17,0.09,0.21),shoe);s.position.set(x,0.045,0.028);s.castShadow=true;g.add(s);
-  });
-
   if(isFemale && !noHair){
     const skirt=new THREE.Mesh(cyl(0.265,0.3,0.28,12),mat(shirtColor===0xcc2288?0x880e4f:0x6600aa,{roughness:0.9}));
-    skirt.position.y=0.56;g.add(skirt);
+    skirt.position.y=0.56; g.add(skirt);
   }
   return g;
 }
@@ -1493,7 +1511,7 @@ function addEnhancedMesh(geo,material,x,y,z,group){
 }
 function enhanceWorld(){
   if(window.__familyFunEnhanced||typeof THREE==='undefined')return;window.__familyFunEnhanced=true;
-  const badge=document.createElement('div');badge.className='enhanced-badge';badge.textContent='✦ شهر زنده · نسخه‌ی طبیـعی‌تر';document.body.appendChild(badge);
+  /* 2.1.0: bottom badge removed (HUD declutter) */
   buildStreetDetail();buildArchitectureDetail();buildGardens();buildTraffic();buildAtmosphere();
   window.setInterval(updateEnhancedLighting,800);
 }
@@ -1571,3 +1589,6 @@ try{
   Object.defineProperty(window,'stats',{get:()=>stats,configurable:true});
   Object.defineProperty(window,'inventory',{get:()=>inventory,configurable:true});
 }catch(e){ console.warn('FF bridge',e); }
+
+// 2.1.0: explicit window bridge so overlay hooks (character-studio, landscape) always see initGame.
+window.initGame = initGame;

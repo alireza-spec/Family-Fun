@@ -38,17 +38,23 @@
 // FOV 64: slant = sqrt(4.8^2 + (2.7-1.45)^2) = 4.97, screen fraction =
 // 1.8 / (2 * 4.97 * tan(32 deg)) = 1.8 / 6.21 = 29% — the GTA target
 // band (25-30%). Shoulder is closer/sideways, Wide is for city/driving.
+// 2.7.0 CLOSER CAMERA: the 2.6.0 driving shot left the van tiny in a sea
+// of grass (user screenshot). Foot Follow: slant = sqrt(3.8^2 +
+// (2.5-1.45)^2) = 3.94, visible height = 2*3.94*tan(32deg) = 4.93, so a
+// 1.8-unit player = 36.5% of screen height (was 29% at 4.8). Driving
+// Follow 6.3 keeps the car large in the lower frame while staying far
+// enough for steering. Collision pull-in (min 1.2) still applies.
 var MODES = {
-  follow:   {foot: [4.8, 2.7, 64, 0.55], drive: [8.6, 3.9, 74, 0.4]},
-  shoulder: {foot: [3.4, 2.3, 62, 1.05], drive: [6.5, 3.2, 70, 0.8]},
-  wide:     {foot: [7.5, 3.8, 70, 0.30], drive: [11.0, 4.8, 76, 0.3]}
+  follow:   {foot: [3.8, 2.5, 64, 0.55], drive: [6.3, 3.4, 72, 0.4]},
+  shoulder: {foot: [2.8, 2.2, 62, 1.05], drive: [5.0, 2.9, 70, 0.8]},
+  wide:     {foot: [5.5, 3.3, 68, 0.30], drive: [8.0, 4.2, 74, 0.3]}
 };
 var MODE_ORDER = ['follow', 'shoulder', 'wide'];
 var MODE_LABEL = {follow: 'دنبال‌کننده', shoulder: 'شانه‌ای', wide: 'باز'};
 var camMode25 = 'follow';
 try{ var saved = localStorage.getItem('ff-camera-mode'); if (MODES[saved]) camMode25 = saved; }catch(e){}
-var FOOT_DIST = 4.8, FOOT_H = 2.7, FOOT_FOV = 64;
-var DRIVE_DIST = 8.6, DRIVE_H = 3.9, DRIVE_FOV = 74;
+var FOOT_DIST = 3.8, FOOT_H = 2.5, FOOT_FOV = 64;
+var DRIVE_DIST = 6.3, DRIVE_H = 3.4, DRIVE_FOV = 72;
 var MIN_DIST = 1.2, MARGIN = 0.35, BLOCK_R = 0.45;
 var st = {
   init: false, yaw: 0,

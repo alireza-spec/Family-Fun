@@ -943,10 +943,19 @@ function updateTag(obj,tag){
     tag.style.display = 'none';
     return;
   }
+  // 2.7.0 QUIET TEXT: name tags only within ~12 units, fading out with
+  // distance, and only in front of the camera. Far NPCs get NO tag at all
+  // — this removes most of the crowded writings in the screenshots.
+  var camDist = 0;
+  try{ if(camera) camDist = obj.position.distanceTo(camera.position); }catch(e){}
+  if(camDist > 12){ tag.style.display='none'; return; }
+  // Opacity: 0.85 close, fading to ~0.25 at 12 units.
+  var op = camDist <= 4 ? 0.85 : 0.85 * (1 - (camDist - 4) / 8 * 0.7);
   const p=obj.position.clone();p.y+=2.05;p.project(camera); // 2.5.0: 1.8-unit player, tag just above the head
   const x=(p.x*.5+.5)*innerWidth, y=(-p.y*.5+.5)*innerHeight;
   if(p.z<1&&x>0&&x<innerWidth&&y>0&&y<innerHeight){
     tag.style.display='flex';tag.style.left=x+'px';tag.style.top=y+'px';
+    tag.style.opacity=op.toFixed(2);
   } else tag.style.display='none';
 }
 
@@ -1597,7 +1606,10 @@ function updateParticles(dt) {
 }
 
 function showToast(msg){
+  // 2.7.0 QUIET TEXT: max ONE toast at a time, never stacked.
   const area=document.getElementById('toast-area');
+  if(!area) return;
+  while(area.firstChild) area.firstChild.remove();
   const d=document.createElement('div');d.className='toast';d.textContent=msg;
   area.appendChild(d);setTimeout(()=>d.remove(),2500);
 }

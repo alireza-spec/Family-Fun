@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Family Fun 2.6.0 — بازی سه‌بعدی زندگی خانوادگی و شهر باز، فارسی و راست‌چین">
+<meta name="description" content="Family Fun 2.7.0 — بازی سه‌بعدی زندگی خانوادگی و شهر باز، فارسی و راست‌چین">
 <meta name="theme-color" content="#0f0f1e">
-<title>Family Fun 2.6.0 — Open City Edition</title>
+<title>Family Fun 2.7.0 — Open City Edition</title>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;900&display=swap');
@@ -110,16 +110,16 @@ body{overflow:hidden;font-family:'Vazirmatn',sans-serif;background:#000;touch-ac
   font-size:20px;cursor:pointer;transition:all .15s;}
 .acircle:active{transform:scale(.88);background:rgba(255,255,255,.15);}
 
-/* Interact button */
-#interact-btn{position:absolute;bottom:172px;left:50%;transform:translateX(-50%);
-  pointer-events:auto;padding:11px 28px;border-radius:28px;border:none;
-  background:linear-gradient(135deg,#00e676,#00bcd4);
-  color:#000;font-family:'Vazirmatn',sans-serif;font-weight:700;font-size:14px;
+/* Interact button — 2.7.0: SMALL quiet pill, bottom-centre-right, NO glow,
+   NO pulse animation. The huge glowing centre "exit" button is gone. */
+#interact-btn{position:absolute;bottom:44px;right:88px;left:auto;transform:none;
+  pointer-events:auto;padding:10px 16px;border-radius:22px;
+  border:1px solid rgba(255,255,255,.25);
+  background:rgba(0,0,0,.55);
+  color:#fff;font-family:'Vazirmatn',sans-serif;font-weight:600;font-size:12px;
   cursor:pointer;display:none;white-space:nowrap;
-  box-shadow:0 4px 20px rgba(0,230,118,.55);
-  animation:ipulse 1s ease-in-out infinite alternate;}
-@keyframes ipulse{from{box-shadow:0 4px 20px rgba(0,230,118,.4);transform:translateX(-50%) scale(1)}
-  to{box-shadow:0 4px 35px rgba(0,230,118,.8);transform:translateX(-50%) scale(1.04)}}
+  box-shadow:0 2px 10px rgba(0,0,0,.35);
+  animation:none;}
 
 /* Toast */
 #toast-area{position:absolute;top:72px;left:50%;transform:translateX(-50%);
@@ -212,9 +212,9 @@ body{overflow:hidden;font-family:'Vazirmatn',sans-serif;background:#000;touch-ac
 /* Name tags */
 .name-tag{position:absolute;pointer-events:none;transform:translate(-50%,-100%);
   display:flex;flex-direction:column;align-items:center;gap:1px;}
-.nt-name{background:rgba(8,8,18,.82);color:#fff;padding:2px 8px;
-  border-radius:5px;font-size:11px;font-weight:600;
-  border:1px solid rgba(255,255,255,.15);white-space:nowrap;}
+.nt-name{background:rgba(8,8,18,.55);color:rgba(255,255,255,.92);padding:1px 7px;
+  border-radius:5px;font-size:10px;font-weight:600;
+  border:1px solid rgba(255,255,255,.12);white-space:nowrap;}
 .name-tag.player .nt-name{color:#ffd700;border-color:rgba(255,215,0,.4);}
 
 /* Fade */

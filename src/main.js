@@ -64,6 +64,8 @@ const SCRIPTS = [
   './game/models23.js', // 2.3.0: real GLB characters/cars + phone/backpack props (fallback mandatory)
   './game/camera24.js', // 2.4.0: GTA-style TPV camera — the ONLY TPV camera controller
   './game/city25.js', // 2.5.0: GTA city dressing (markings, crossings, signs)
+  './game/city27.js', // 2.7.0: denser city (second road grid, district buildings, tree rows, park, parked cars, skyline)
+  './game/quiet27.js', // 2.7.0: quiet text (small interact pill, name-tag fade, compact HUD text) — loaded last so its CSS wins
   './game/ambient23.js', // 2.3.0: random non-looping ambient events + surface footsteps
 ];
 

@@ -96,17 +96,26 @@ window.FFTextures={
   material: function(color,texName,opts){
     opts=opts||{};
     var m={color:color,roughness:opts.roughness!==undefined?opts.roughness:0.85,metalness:opts.metalness||0};
+    var fileTexName = null;
     if(texName){ var t=tex(texName,opts.rx||1,opts.ry||1); m.map=t; m.bumpMap=t; m.bumpScale=opts.bump||0.6;
-      /* 2.2.0 file upgrade (async, canvas fallback on error): */
-      if(FILETEX[texName] && window.THREE){ try{
-        var matRef = null;
-        new THREE.TextureLoader().load(FILETEX[texName], function(ft){
+      if(FILETEX[texName] && window.THREE) fileTexName = texName;
+    }
+    if(opts.emissive!==undefined){ m.emissive=opts.emissive; m.emissiveIntensity=opts.emissiveIntensity||0.2; }
+    if(opts.transparent!==undefined) m.transparent=opts.transparent;
+    if(opts.opacity!==undefined) m.opacity=opts.opacity;
+    var outMat = new THREE.MeshStandardMaterial(m);
+    /* 2.2.0 file upgrade (async, canvas fallback on error). Runs AFTER all
+       material options (emissive/transparent/opacity) are applied, so the
+       file texture never drops them. */
+    if(fileTexName && window.THREE){ try{
+      (function(matRef, texName, opts){
+        function applyFile(ft){
           ft.colorSpace=THREE.SRGBColorSpace; ft.wrapS=ft.wrapT=THREE.RepeatWrapping;
           ft.repeat.set(opts.rx||1,opts.ry||1);
           try{ ft.anisotropy=Math.min(8, (window.renderer?window.renderer.capabilities.getMaxAnisotropy():4)); }catch(e){}
-          if(matRef){ matRef.map=ft; matRef.bumpMap=ft; matRef.needsUpdate=true; }
-        }, undefined, function(){
-          /* File missing (e.g. binary never pushed): decode the .b64 text companion. */
+          matRef.map=ft; matRef.bumpMap=ft; matRef.needsUpdate=true;
+        }
+        new THREE.TextureLoader().load(FILETEX[texName], applyFile, undefined, function(){
           try{
             fetch(FILETEX[texName] + '.b64').then(function(r){ return r.text(); }).then(function(t){
               var bin = atob(t.replace(/\s/g, ''));
@@ -114,21 +123,13 @@ window.FFTextures={
               for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
               var mime = FILETEX[texName].slice(-4) === '.png' ? 'image/png' : 'image/jpeg';
               var url = URL.createObjectURL(new Blob([bytes], { type: mime }));
-              new THREE.TextureLoader().load(url, function(ft){
-                ft.colorSpace=THREE.SRGBColorSpace; ft.wrapS=ft.wrapT=THREE.RepeatWrapping;
-                ft.repeat.set(opts.rx||1,opts.ry||1);
-                if(matRef){ matRef.map=ft; matRef.bumpMap=ft; matRef.needsUpdate=true; }
-              });
+              new THREE.TextureLoader().load(url, applyFile);
             }).catch(function(){});
           }catch(e){}
         });
-        var _m = new THREE.MeshStandardMaterial(m); matRef = _m; return _m;
-      }catch(e){} }
-    }
-    if(opts.emissive!==undefined){ m.emissive=opts.emissive; m.emissiveIntensity=opts.emissiveIntensity||0.2; }
-    if(opts.transparent!==undefined) m.transparent=opts.transparent;
-    if(opts.opacity!==undefined) m.opacity=opts.opacity;
-    return new THREE.MeshStandardMaterial(m);
+      })(outMat, fileTexName, opts);
+    }catch(e){} }
+    return outMat;
   }
 };
 })();

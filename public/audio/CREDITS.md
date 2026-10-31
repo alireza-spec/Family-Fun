@@ -86,3 +86,8 @@ of the verified grass recording (grass / pavement / wood-indoor), and the
 engine variant is a pitch factor by vehicle kind (car 1.0, van/truck 0.75,
 police/ambulance 1.18) in `audio.js`. A dog bark, phone ring, brake squeak
 and distinct stone/tile footsteps are still open items, not claimed here.
+
+## 2.6.0 — Softened derivatives (same CC0 sources, ffmpeg-processed)
+- `siren-soft.mp3` (+ `.mp3.b64`): derivative of the 2.2.0 CC0 siren — lowpass 1500 Hz, volume 0.6, 0.4 s fades. Measured: mean -19.3 dB / max -16.9 dB (was -13.4 / -11.0 dB).
+- `engine-soft.mp3` (+ `.mp3.b64`): derivative of the 2.2.0 CC0 engine — lowpass 800 Hz, volume 0.85. Measured: mean -16.4 dB / max -6.6 dB.
+- No new recordings were downloaded in 2.6.0: the harshness was in pitch (engine rate up to 2.24x), levels, stacking and the lack of fades/distance attenuation, not in missing files. The horn file itself peaks at 0.0 dB, so it is capped to ~1.3 s with a fade-out instead of being replaced (no verified softer CC0 horn was found in this round).

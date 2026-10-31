@@ -8,12 +8,12 @@
 (function(){
 'use strict';
 var EVENTS = [
-  {file: 'audio/ambient-bird1.mp3', vol: 0.45, label: 'bird chirp'},
-  {file: 'audio/ambient-crows.mp3', vol: 0.35, label: 'crows'},
-  {file: 'audio/ambient-crowd.mp3', vol: 0.30, label: 'cafe crowd'},
-  {file: 'audio/ambient-doorbell.mp3', vol: 0.40, label: 'doorbell'},
-  {file: 'audio/wind.mp3', vol: 0.25, label: 'wind gust', gust: true},
-  {file: 'audio/engine.mp3', vol: 0.30, label: 'car pass-by', pass: true}
+  {file: 'audio/ambient-bird1.mp3', vol: 0.28, label: 'bird chirp'},
+  {file: 'audio/ambient-crows.mp3', vol: 0.22, label: 'crows'},
+  {file: 'audio/ambient-crowd.mp3', vol: 0.20, label: 'cafe crowd'},
+  {file: 'audio/ambient-doorbell.mp3', vol: 0.25, label: 'doorbell'},
+  {file: 'audio/wind.mp3', vol: 0.18, label: 'wind gust', gust: true},
+  {file: 'audio/engine-soft.mp3', vol: 0.20, label: 'car pass-by', pass: true} // 2.6.0: softened engine for pass-bys too
 ];
 var blobURLs = {}, timer = null, started = false;
 function b64ToBlobURL(b64, mime){
@@ -60,9 +60,15 @@ function playEvent(ev){
       setTimeout(function(){ try{ a.pause(); }catch(e){} clearInterval(iv); }, 9000);
       return;
     }
-    a.volume = ev.vol * vol() * (0.8 + Math.random() * 0.4);
+    // 2.6.0: fade in over ~150ms — ambient events no longer start at full volume.
+    var tv = ev.vol * vol() * (0.8 + Math.random() * 0.4);
+    a.volume = 0;
     if (ev.file.indexOf('bird') >= 0) a.playbackRate = 0.9 + Math.random() * 0.25;
     var pp = a.play(); if (pp && pp.catch) pp.catch(function(){});
+    (function(el, target){
+      var st = 0;
+      var iv = setInterval(function(){ st++; try{ el.volume = target * Math.min(1, st / 6); }catch(e){} if (st >= 6) clearInterval(iv); }, 25);
+    })(a, tv);
   }catch(e){}
 }
 function schedule(){
@@ -107,7 +113,7 @@ function installFootsteps(){
         var src = 'audio/footstep-grass.mp3';
         var a = new Audio(src);
         var rate = s === 'pavement' ? 1.18 : s === 'wood' ? 0.85 : 0.95 + Math.random() * 0.2;
-        var v = s === 'pavement' ? 0.6 : s === 'wood' ? 0.45 : 0.55;
+        var v = s === 'pavement' ? 0.38 : s === 'wood' ? 0.30 : 0.34; // 2.6.0: softer footsteps
         a.volume = window.FFAudio.muted ? 0 : v * window.FFAudio.volume;
         a.playbackRate = rate;
         var pp = a.play(); if (pp && pp.catch) pp.catch(function(){});

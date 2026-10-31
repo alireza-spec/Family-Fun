@@ -71,6 +71,21 @@ function makeCarMesh(color, isPolice){
   boxMesh(2.3, 0.55, 4.1, bodyMat, 0, 0.58, 0, g);
   boxMesh(1.8, 0.5, 1.9, isPolice ? mat(0xf2f2f2, {}) : dark, 0, 1.05, -0.2, g);
   boxMesh(1.7, 0.35, 1.7, glass, 0, 1.12, -0.2, g);
+  // 2.6.0 interior (visible through the glass) + lights. Front is local +Z.
+  var seatMat = mat(0x2b2f36, {roughness: 0.9});
+  boxMesh(0.55, 0.5, 0.5, seatMat, -0.45, 0.85, 0.35, g);
+  boxMesh(0.55, 0.5, 0.5, seatMat, 0.45, 0.85, 0.35, g);
+  boxMesh(1.4, 0.45, 0.5, seatMat, 0, 0.85, -0.65, g);
+  var wheel = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 8, 16), mat(0x111318, {roughness: 0.7}));
+  wheel.position.set(-0.45, 1.0, 0.75); wheel.rotation.x = -0.5; g.add(wheel);
+  function lamp(color, x, y, z, inten){
+    var m = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.06),
+      new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: inten}));
+    m.position.set(x, y, z); g.add(m); return m;
+  }
+  g.userData.brake = [lamp(0xff2222, -0.8, 0.68, -2.06, 0.4), lamp(0xff2222, 0.8, 0.68, -2.06, 0.4)];
+  g.userData.ind = [lamp(0xffaa00, -0.95, 0.68, 2.06, 0.3), lamp(0xffaa00, 0.95, 0.68, 2.06, 0.3)];
+  g.userData.head = [lamp(0xfff6cc, -0.7, 0.62, 2.06, 0.4), lamp(0xfff6cc, 0.7, 0.62, 2.06, 0.4)];
   if (isPolice) {
     var r = boxMesh(0.5, 0.18, 0.5, new THREE.MeshStandardMaterial({color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 2}), -0.45, 1.38, -0.2, g);
     var b = boxMesh(0.5, 0.18, 0.5, new THREE.MeshStandardMaterial({color: 0x2244ff, emissive: 0x2244ff, emissiveIntensity: 2}), 0.45, 1.38, -0.2, g);
@@ -224,28 +239,54 @@ function busted(){
 }
 function enterCar(car){
   if (!window.playerGroup) return;
+  // 2.6.0: a moving traffic car stops first — you cannot board a car that
+  // drives away from under you. It stays parked after you get out.
+  if (car.kind === 'traffic'){ car.speed = 0; car.wasTraffic = true; }
   driving = car; driveHeading = car.heading; driveSpeed = 0;
   car.group.userData.driver = true;
-  // 2.3.0: door sound + short enter step (not an instant teleport pop).
-  try{ if (window.FFAudio) window.FFAudio.door(); }catch(e){}
+  // 2.6.0: walk-to-door, not a teleport pop. The player steps to the
+  // door side (the side nearer to where he stood), then sits down.
   var pg = window.playerGroup;
+  try{
+    var fx = Math.sin(car.heading), fz = Math.cos(car.heading);
+    var px = fx, pz = -fz; // perpendicular (right side)
+    var dR = Math.hypot(pg.position.x - (car.group.position.x + px * 2.2), pg.position.z - (car.group.position.z + pz * 2.2));
+    var dL = Math.hypot(pg.position.x - (car.group.position.x - px * 2.2), pg.position.z - (car.group.position.z - pz * 2.2));
+    var sgn = dR <= dL ? 1 : -1;
+    pg.position.set(car.group.position.x + px * sgn * 2.2, 0, car.group.position.z + pz * sgn * 2.2);
+  }catch(e){}
+  try{ if (window.FFAudio) window.FFAudio.door(); }catch(e){}
+  window.FFEnterGrace = Date.now() + 900; // 2.6.0: no instant car-collision shove on enter
   setTimeout(function(){
     if (driving === car && pg){
       pg.visible = false;
-      // Keep the 2.3.0 GLB player hidden with the group; the capsule
-      // body is only re-shown on exit if no GLB model replaced it.
       if (window.playerBody) window.playerBody.visible = false;
     }
   }, 250);
   if (car.police && state.wanted < 5) { state.wanted = Math.min(5, state.wanted + 1); save(); toast('🚔 ماشین پلیس را برداشتی! تحت تعقیب شدی'); }
-  else toast('🚘 سوار شدی — WASD رانندگی | Space ترمز دستی | E پیاده شدن | R تعمیر در گاراژ');
+  else toast('🚘 سوار شدی — جوی‌استیک: بالا گاز، پایین ترمز، چپ/راست فرمان | دکمه «پیاده شو» برای خروج');
   unlock('firstDrive', 'اولین رانندگی');
 }
 function exitCar(){
   if (!driving || !window.playerGroup) return;
   var c = driving.group.position;
+  var wasTraffic = driving.wasTraffic;
   driving.group.userData.driver = false;
-  window.playerGroup.position.set(c.x + 2, 0, c.z + 2);
+  // 2.6.0: exit beside the car, on a side that is not inside a building
+  // (the old diagonal +2,+2 could drop you into a wall). Traffic cars
+  // stay parked after you leave them.
+  var h = driving.heading || 0;
+  var sides = [[Math.cos(h), -Math.sin(h)], [-Math.cos(h), Math.sin(h)], [Math.sin(h), Math.cos(h)], [-Math.sin(h), -Math.cos(h)]];
+  var placed = false;
+  for (var si = 0; si < sides.length && !placed; si++){
+    var nx = c.x + sides[si][0] * 2.4, nz = c.z + sides[si][1] * 2.4;
+    var blocked = false;
+    try{ if (window.FFLogic && window.FFLogic.collide(nx, nz, 0.55).hit) blocked = true; }catch(e){}
+    if (!blocked){ window.playerGroup.position.set(nx, 0, nz); placed = true; }
+  }
+  if (!placed) window.playerGroup.position.set(c.x + 2.4, 0, c.z + 2.4);
+  if (wasTraffic){ driving.kind = 'parked'; driving.wasTraffic = false; }
+  window.FFEnterGrace = Date.now() + 900; // 2.6.0: no instant push-out shove on exit
   window.playerGroup.visible = true;
   // 2.3.0: if a GLB player model replaced the capsule, do NOT re-show
   // the capsule (that would draw two characters at once).
@@ -407,11 +448,17 @@ function update(dt, t){
       var d = Math.hypot(o.group.position.x - nx, o.group.position.z - nz);
       if (d < 3.2) { hit = true; o.group.position.x += (o.group.position.x - nx) * 0.2; o.group.position.z += (o.group.position.z - nz) * 0.2; }
     });
-    if (hit && Math.abs(driveSpeed) > 3) {
-      driveSpeed *= -0.25;
-      driving.health = Math.max(0, driving.health - 9);
-      if (driving.health <= 0) { toast('💥 ماشین خراب شد! با R در گاراژ تعمیرش کن (یا پیاده شو)'); driveSpeed = 0; }
-      offence('تصادف');
+    if (hit) {
+      // 2.6.0 SOFT impact: gentle touch just slows you (no damage, no fine);
+      // a hard hit bounces softly and damages in proportion to speed.
+      if (Math.abs(driveSpeed) > 8) {
+        driving.health = Math.max(0, driving.health - Math.min(12, Math.abs(driveSpeed) * 0.5));
+        driveSpeed *= -0.15;
+        if (driving.health <= 0) { toast('💥 ماشین خراب شد! با R در گاراژ تعمیرش کن (یا پیاده شو)'); driveSpeed = 0; }
+        offence('تصادف');
+      } else {
+        driveSpeed *= 0.35;
+      }
     } else if (!hit) {
       driving.group.position.x = Math.max(-70, Math.min(70, nx));
       driving.group.position.z = Math.max(-70, Math.min(70, nz));
@@ -422,21 +469,23 @@ function update(dt, t){
     window.playerGroup.visible = false;
     if (window.playerBody) window.playerBody.visible = false;
     if (window.FFAudio) window.FFAudio.setEngine(true, Math.abs(driveSpeed), driving.kind);
-    // 2.3.0: real car-car contact while driving (was only building blocks).
-    cars.forEach(function(other){
-      if (other === driving) return;
-      var dx = driving.group.position.x - other.group.position.x;
-      var dz = driving.group.position.z - other.group.position.z;
-      var d = Math.sqrt(dx*dx + dz*dz);
-      if (d < 3.4 && d > 0.01 && Math.abs(driveSpeed) > 2){
-        driveSpeed *= -0.3;
-        driving.health = Math.max(0, driving.health - 9);
-        if (driving.health <= 0) { toast('💥 ماشین خراب شد! با R در گاراژ تعمیرش کن (یا پیاده شو)'); driveSpeed = 0; }
-        offence('تصادف');
-        driving.group.position.x += dx / d * 0.6;
-        driving.group.position.z += dz / d * 0.6;
+    // 2.6.0 lights: brake lights on braking, indicators blink with steering,
+    // headlights bright at night, dim by day.
+    try{
+      var ud = driving.group.userData;
+      if (ud.brake) ud.brake.forEach(function(m){ m.material.emissiveIntensity = brake ? 3 : 0.4; });
+      var blink = Math.floor(t * 3) % 2 === 0;
+      if (ud.ind){
+        var st = steer || 0;
+        ud.ind[0].material.emissiveIntensity = (st < -0.1 && blink) ? 2.5 : 0.3;
+        ud.ind[1].material.emissiveIntensity = (st > 0.1 && blink) ? 2.5 : 0.3;
       }
-    });
+      var hour26 = 12; try{ hour26 = (window.gameTime || 720) / 60; }catch(e){}
+      if (ud.head) ud.head.forEach(function(m){ m.material.emissiveIntensity = (hour26 >= 20 || hour26 < 6) ? 2.5 : 0.4; });
+    }catch(e){}
+    // 2.6.0: the car-car contact above (building-block loop) already handles
+    // car-car softly; the old second loop double-counted damage here, so it
+    // was removed — one impact, one response, no double penalty.
   }
   // --- Traffic ---
   var phase = lightPhase(t);
@@ -468,6 +517,12 @@ function update(dt, t){
     if (driving) {
       var dp = Math.hypot(driving.group.position.x - car.group.position.x, driving.group.position.z - car.group.position.z);
       if (dp < 5) stopped = true;
+    }
+    // 2.6.0: traffic also stops for a pedestrian on foot (family-friendly:
+    // nobody gets run over while walking up to a car to board it).
+    if (!driving && window.playerGroup) {
+      var dp2 = Math.hypot(window.playerGroup.position.x - car.group.position.x, window.playerGroup.position.z - car.group.position.z);
+      if (dp2 < 4) stopped = true;
     }
     var sp = stopped ? 0 : car.speed * (weather.rain ? 0.8 : 1);
     car.group.position.x += (dx / dist) * sp * dt;
@@ -594,6 +649,15 @@ function update(dt, t){
 }
 window.FFGTA = {
   state: state, save: save, unlock: unlock, offence: offence,
+  enterCar: enterCar, exitCar: exitCar, nearestCar: nearestCar,
+  get cars(){ return cars; }, get policeCars(){ return policeCars; },
+  carLabel: function(car){
+    if (!car) return 'ماشین';
+    if (car.police) return 'ماشین پلیس 🚔';
+    if (car.kind === 'traffic') return 'ماشین در حال حرکت 🚗';
+    if (car.sports) return 'ماشین اسپرت 🏎️';
+    return 'ماشین پارک‌شده 🚗';
+  },
   get wanted(){ return state.wanted; },
   get driving(){ return driving; },
   get peds(){ return peds; }, // 2.5.0: lets models23 replace capsule peds with GLB models

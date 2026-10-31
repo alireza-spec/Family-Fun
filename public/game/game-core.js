@@ -981,8 +981,30 @@ function checkInteractions(){
     if(d<minD+0.3){minD=d;nearest={kind:'npc',data:npc};}
   });
 
+  // 2.6.0 CAR PROMPT (mobile enter/exit): the interact button is the ONLY
+  // touch path into a car — GTA enter was keyboard-E only, so on a phone
+  // cars were literally unboardable. Cars come from FFGTA (parked/traffic/
+  // police); the button shows while driving too, as the exit button.
+  let carPrompt=null;
+  try{
+    if(window.FFGTA && window.FFGTA.driving){ carPrompt={kind:'exit'}; }
+    else if(window.FFGTA && window.FFGTA.nearestCar){
+      const nc=window.FFGTA.nearestCar(3.5);
+      if(nc) carPrompt={kind:'enter',car:nc};
+    }
+  }catch(e){}
   const btn=document.getElementById('interact-btn');
-  if(nearest){
+  if(carPrompt){
+    if(carPrompt.kind==='exit'){
+      btn.textContent='🚶 پیاده شو';
+      activeInteract=()=>{ if(window.FFGTA) window.FFGTA.exitCar(); };
+    } else {
+      const lbl=(window.FFGTA.carLabel?window.FFGTA.carLabel(carPrompt.car):'ماشین');
+      btn.textContent='🚗 سوار شو — '+lbl;
+      activeInteract=()=>{ if(window.FFGTA) window.FFGTA.enterCar(carPrompt.car); };
+    }
+    btn.style.display='block';
+  } else if(nearest){
     if(nearest.kind==='obj'){
       const t=nearest.data.type;
       if(t.startsWith('enter_')){
@@ -1360,13 +1382,36 @@ function animate(){
       ffCurSpeed += (targetSpeed - ffCurSpeed) * Math.min(1, dt * 8);
       mv.normalize().multiplyScalar(ffCurSpeed*dt);
       // 2.3.0 real collision: slide along walls instead of passing through.
-      const px=playerGroup.position.x, pz=playerGroup.position.z;
-      if(window.FFLogic){
-        const res=window.FFLogic.resolveMove(px, pz, px+mv.x, pz+mv.z, 0.55);
-        playerGroup.position.x=res.x; playerGroup.position.z=res.z;
-      } else {
-        playerGroup.position.add(mv);
+      // 2.6.0 SUBSTEPS: split the frame move into <=0.4-unit steps so a fast
+      // sprint can never tunnel through a thin wall in one frame.
+      const mvLen=Math.hypot(mv.x, mv.z);
+      const steps=Math.max(1, Math.ceil(mvLen / 0.4));
+      for(let si=0; si<steps; si++){
+        const sx=playerGroup.position.x + mv.x/steps, sz=playerGroup.position.z + mv.z/steps;
+        if(window.FFLogic){
+          const res=window.FFLogic.resolveMove(playerGroup.position.x, playerGroup.position.z, sx, sz, 0.55);
+          playerGroup.position.x=res.x; playerGroup.position.z=res.z;
+        } else {
+          playerGroup.position.x=sx; playerGroup.position.z=sz;
+        }
       }
+      // 2.6.0 player-vs-car contact: you cannot walk THROUGH a car (push out
+      // to a 2.3-unit circle), but the enter prompt range is 3.5, so boarding
+      // still works — and the 0.9s enter/exit grace disables the shove.
+      try{
+        if(window.FFGTA && window.FFGTA.cars && !window.FFGTA.driving &&
+           !(window.FFEnterGrace && Date.now() < window.FFEnterGrace)){
+          window.FFGTA.cars.forEach(function(c){
+            if(!c.group || !c.group.visible) return;
+            const dx=playerGroup.position.x - c.group.position.x, dz=playerGroup.position.z - c.group.position.z;
+            const d=Math.hypot(dx, dz);
+            if(d < 2.3 && d > 0.001){
+              playerGroup.position.x = c.group.position.x + dx/d*2.3;
+              playerGroup.position.z = c.group.position.z + dz/d*2.3;
+            }
+          });
+        }
+      }catch(e){}
       const newYaw=Math.atan2(mv.x,mv.z);
       // 2.3.0 body lean into turns (turn speed depends on speed).
       let dYaw=newYaw-ffPrevYaw; while(dYaw>Math.PI)dYaw-=Math.PI*2; while(dYaw<-Math.PI)dYaw+=Math.PI*2;
@@ -1514,7 +1559,12 @@ function updateNPCs(dt,t){
       if(playerGroup){
         const pdx=npc.position.x-playerGroup.position.x, pdz=npc.position.z-playerGroup.position.z;
         const pd=Math.sqrt(pdx*pdx+pdz*pdz);
-        if(pd<0.9 && pd>0.001){ npc.position.x=playerGroup.position.x+pdx/pd*0.9; npc.position.z=playerGroup.position.z+pdz/pd*0.9; }
+        // 2.6.0 SMOOTH ped separation: ease out to 0.9 instead of teleporting
+        // the NPC to exactly 0.9 in one frame (the old pop).
+        if(pd<0.9 && pd>0.001){
+          const need=0.9-pd, step=Math.min(need, dt*3);
+          npc.position.x += pdx/pd*step; npc.position.z += pdz/pd*step;
+        }
       }
       // 2.4.0: NPCs turn smoothly toward their walk direction (shortest
       // arc, dt-based) instead of lookAt() snapping every frame. The yaw

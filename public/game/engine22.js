@@ -165,7 +165,24 @@ function hook(){
           var wanted = 0;
           var wEl = document.getElementById('ff-gta-wanted');
           if (wEl) wanted = (wEl.textContent.match(/★/g) || []).length;
-          if (window.FFAudio) window.FFAudio.setSiren(wanted > 0);
+          if (window.FFAudio) {
+            // 2.6.0: nearest police light distance (scene traverse, 1/sec) —
+            // the siren must fade with distance, never blast at full volume.
+            var pDist = undefined;
+            try{
+              if (window.playerGroup && window.scene) {
+                var best = 1e9;
+                window.scene.traverse(function(o){
+                  if (o.userData && o.userData.siren) {
+                    var d = Math.hypot(o.position.x - window.playerGroup.position.x, o.position.z - window.playerGroup.position.z);
+                    if (d < best) best = d;
+                  }
+                });
+                if (best < 1e8) pDist = best;
+              }
+            }catch(e){}
+            window.FFAudio.setSiren(wanted > 0, pDist);
+          }
           // Day/night ambience follows the HUD clock.
           var hour = 12; try{ hour = (window.gameTime || 720) / 60; }catch(e){}
           if (window.FFAudio && window.FFAudio._ff22Amb !== ((hour >= 20 || hour < 6) ? 'night' : 'day')){

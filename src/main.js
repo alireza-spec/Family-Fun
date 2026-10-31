@@ -1,4 +1,4 @@
-// Family Fun 2.0.1 — Vite entry point.
+// Family Fun 2.1.0 — Vite entry point.
 // Three.js is bundled by Vite (npm `three`), so the built game has NO CDN
 // dependency at runtime. Legacy game code stays as classic scripts (public/game/)
 // because it relies on shared globals (scene, playerGroup, initGame, …);
@@ -53,6 +53,7 @@ const SCRIPTS = [
   './game/gta.js',
   './game/gta-city.js',
   './game/gta-story.js',
+  './game/landscape-hud.js',
 ];
 
 const SCRIPT_TIMEOUT_MS = 8000;

@@ -38,34 +38,57 @@ function loadGLB(file){
   });
 }
 function fitCharacter(scene){
-  // Scale a skinned character so its height is ~1.7 (game capsule height)
-  // and its feet sit at y=0. Returns a wrapper group.
+  // 2.4.0 SCALE FIX — the 2.3.0 bug that made the player a giant:
+  // Box3.setFromObject() IGNORES skinning, so for a skinned Gobkit
+  // character it measures only the bind-pose geometry: height ≈0.15
+  // (measured in node with three r158, same code path as the game).
+  // The old code then scaled by 1.7/0.15 ≈ 11.3 — but the SKINNED render
+  // is ~2x taller than that Box3 height, so the player came out
+  // ~2.7-4.6 units tall on the user's phone screenshots, towering over
+  // a race car whose (reliable, non-skinned) height is only 1.17.
+  // Fix: halve the Box3-derived scale (CHAR_RENDER_CORRECTION = 0.5,
+  // the midpoint of the 1.6-2.7x over-scale range measured from the
+  // screenshots), giving a rendered height ≈1.7 — the same as every
+  // NPC, so player/NPC parity is exact by construction. All Gobkit
+  // characters share one rig, so one correction fits all five files.
   var wrapper = new THREE.Group();
   try{
     var box = new THREE.Box3().setFromObject(scene);
     var size = new THREE.Vector3(); box.getSize(size);
-    var h = size.y || 1.7;
-    var s = 1.7 / h;
+    var h = size.y || 0.15;
+    var s = (1.7 / h) * 0.5;
     scene.scale.setScalar(s);
-    // Recompute after scaling to find the feet offset.
     var box2 = new THREE.Box3().setFromObject(scene);
     scene.position.y = -box2.min.y;
     scene.traverse(function(o){ if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    log('fitCharacter boxH=' + h.toFixed(3) + ' scale=' + s.toFixed(2) + ' -> rendered ~1.7');
   }catch(e){ warn('fitCharacter', e); }
   wrapper.add(scene);
   return wrapper;
 }
 function fitCar(scene, targetLen){
+  // 2.4.0: length = the LONGEST horizontal extent (some packs are
+  // X-long in local space), rotate an X-dominant model -90° about Y so
+  // its front faces +Z like every other car, and cap the width at 2.1
+  // so a scaled truck never becomes a wall. Fitted dims are stored on
+  // the wrapper for the 2.4.0 camera's vehicle collision spheres.
   var wrapper = new THREE.Group();
   try{
     var box = new THREE.Box3().setFromObject(scene);
     var size = new THREE.Vector3(); box.getSize(size);
+    if (size.x > size.z * 1.05){
+      scene.rotation.y = -Math.PI / 2; // +X front -> +Z front
+      scene.updateMatrixWorld(true);
+      box = new THREE.Box3().setFromObject(scene);
+      box.getSize(size);
+    }
     var len = Math.max(size.z, 0.1);
-    var s = (targetLen || 4.1) / len;
+    var s = Math.min((targetLen || 4.1) / len, 2.1 / Math.max(size.x, 0.1));
     scene.scale.setScalar(s);
     var box2 = new THREE.Box3().setFromObject(scene);
     scene.position.y = -box2.min.y;
     scene.traverse(function(o){ if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    wrapper.userData.ff24 = {len: size.z * s, wid: size.x * s, height: size.y * s};
   }catch(e){ warn('fitCar', e); }
   wrapper.add(scene);
   return wrapper;
@@ -171,19 +194,33 @@ function loop(){
       }
       prevPlayerPos = {x: p.x, z: p.z};
       if (playerModel){
-        // Follow the capsule body's facing (animate() still drives it).
-        if (pb) playerModel.group.rotation.y = pb.rotation.y;
+        // 2.4.0: follow the capsule body's facing SMOOTHLY (shortest
+        // arc, dt-based) — the old direct assignment re-introduced the
+        // snap that game-core's smoothed yaw had just removed.
+        if (pb){
+          if (playerModel.smoothYaw === undefined) playerModel.smoothYaw = pb.rotation.y;
+          var dy = pb.rotation.y - playerModel.smoothYaw;
+          while (dy > Math.PI) dy -= Math.PI * 2;
+          while (dy < -Math.PI) dy += Math.PI * 2;
+          playerModel.smoothYaw += dy * Math.min(1, dt * 10);
+          playerModel.group.rotation.y = playerModel.smoothYaw;
+        }
         var entry = playerModel.entry;
         if (entry){
           if (moving > 6) setAnim(entry, 'Run');
           else if (moving > 0.4) setAnim(entry, 'Walk');
           else setAnim(entry, 'Idle');
+          // 2.4.0: playback rate follows ground speed, so the walk does
+          // not look like a fixed-speed treadmill.
+          if (entry.mixer) entry.mixer.timeScale = moving <= 0.4 ? 1 : (moving > 6 ? 1.3 : 0.7 + moving * 0.06);
         }
         // Backpack: worn on the back, facing with the body.
+        // 2.4.0 positions re-tuned for the corrected 1.7-unit player
+        // (was 1.02/0.30 for the old ~2.7+ giant player).
         if (backpackGroup && backpackGroup.parent === pg){
           var yaw = pb ? pb.rotation.y : 0;
           backpackGroup.rotation.y = yaw;
-          backpackGroup.position.set(-Math.sin(yaw)*0.30, 1.02, -Math.cos(yaw)*0.30);
+          backpackGroup.position.set(-Math.sin(yaw)*0.24, 0.82, -Math.cos(yaw)*0.24);
           backpackGroup.visible = backpackOn;
         }
         // Phone: only while a dialog/call box is open, held at the head side.
@@ -194,7 +231,7 @@ function loop(){
           if (open){
             var y2 = pb ? pb.rotation.y : 0;
             phoneGroup.rotation.y = y2; phoneGroup.rotation.z = -0.25;
-            phoneGroup.position.set(Math.cos(y2)*0.24 + Math.sin(y2)*0.10, 1.52, -Math.sin(y2)*0.24 + Math.cos(y2)*0.10);
+            phoneGroup.position.set(Math.cos(y2)*0.20 + Math.sin(y2)*0.08, 1.32, -Math.sin(y2)*0.20 + Math.cos(y2)*0.08);
           }
         }
       }
@@ -208,6 +245,7 @@ function loop(){
       if (rec.entry){
         if (sp > 1.2) setAnim(rec.entry, 'Walk');
         else setAnim(rec.entry, 'Idle');
+        if (rec.entry.mixer) rec.entry.mixer.timeScale = sp > 1.2 ? 0.9 : 1;
       }
     });
     // Car wheels: spin from position delta, steer from heading delta.
@@ -261,6 +299,11 @@ function installNPCs(){
     try{
       var clone = cloneSkinned(tpl);
       var wrapper = fitCharacter(clone);
+      // 2.4.0: every NPC gets a GLB at the SAME scale as the player
+      // (fitCharacter), with only ±6% deterministic height variation —
+      // never the tiny-box look from the screenshots, which was the
+      // giant player making normal NPCs look small by comparison.
+      wrapper.scale.multiplyScalar(0.94 + (idx % 5) * 0.03);
       npc.add(wrapper);
       npc.userData.body.visible = false;
       var entry = makeMixer(wrapper, tpl, 'Idle');
@@ -307,7 +350,11 @@ function installCars(){
           }catch(e){}
         }
         o.userData.ff23Modelled = true;
-        modelledCars.push({group: o, wheels: wheels, spin: 0, steer: 0, id: 'gta' + (idSeq++)});
+        // 2.4.0: collision radius for the GTA camera (sphere around the
+        // fitted car), so the camera can no longer end up inside a van.
+        var fd = wrapper.userData.ff24 || {len: 4.1, wid: 2.0};
+        o.userData.ff24Radius = Math.sqrt(Math.pow(fd.len / 2, 2) + Math.pow(fd.wid / 2, 2)) * 0.7;
+        modelledCars.push({group: o, wheels: wheels, spin: 0, steer: 0, id: 'gta' + (idSeq++), radius: o.userData.ff24Radius});
       }catch(e){ warn('gta car install failed', e); }
     }
   });
@@ -328,7 +375,9 @@ function installCars(){
         if (nm.indexOf('wheel') >= 0) wheels.push({node: n, isFront: nm.indexOf('front') >= 0});
       });
       g.userData.ff23Modelled = true;
-      modelledCars.push({group: g, wheels: wheels, spin: 0, steer: 0, id: 'core' + i});
+      var fd2 = wrapper.userData.ff24 || {len: 4.1, wid: 2.0};
+      g.userData.ff24Radius = Math.sqrt(Math.pow(fd2.len / 2, 2) + Math.pow(fd2.wid / 2, 2)) * 0.7;
+      modelledCars.push({group: g, wheels: wheels, spin: 0, steer: 0, id: 'core' + i, radius: g.userData.ff24Radius});
     }catch(e){ warn('core car install failed', e); }
   });
 }
@@ -343,6 +392,7 @@ function addDrawerButtons(){
 }
 window.FFModels = {
   player: null,
+  cars: modelledCars, // 2.4.0: live list for the GTA camera's vehicle collision
   get backpackOn(){ return backpackOn; },
   setBackpack: function(v){ backpackOn = !!v; if (backpackGroup) backpackGroup.visible = backpackOn; return backpackOn; },
   toggleBackpack: function(){ return this.setBackpack(!backpackOn); }

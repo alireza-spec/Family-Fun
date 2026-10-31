@@ -12,7 +12,7 @@ function init(){
   // version badge on start screen
   var start=document.getElementById('start-screen');
   if(start && !document.getElementById('ff-version')){
-    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۳٫۰ — مدل‌های واقعی';
+    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۴٫۰ — دوربین GTA + مقیاس درست';
     start.appendChild(v);
   }
   // continue button if an autosave exists

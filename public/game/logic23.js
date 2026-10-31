@@ -48,7 +48,10 @@ function cameraFree(cx, cy, cz){
   return true;
 }
 function cameraDistance(px, py, pz, yaw, dist, height){
-  // Shrink the follow distance until the camera is out of the walls.
+  // 2.4.0 DEPRECATED: kept only as the game-core fallback. The real
+  // camera (camera24.js) uses continuous raycast collision vs buildings
+  // AND vehicles instead of these 0.5-unit steps (which popped) and
+  // building-only checks (which let the camera inside a van).
   for (var d = dist; d >= 1.6; d -= 0.5){
     var cx = px - Math.sin(yaw) * d;
     var cy = py + height * (d / dist);

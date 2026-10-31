@@ -62,6 +62,7 @@ const SCRIPTS = [
   './game/engine22.js', // 2.2.0: renderer/props/cars/characters upgrade layer (loads last, wraps only)
   './game/logic23.js', // 2.3.0: colliders / camera-collision helpers
   './game/models23.js', // 2.3.0: real GLB characters/cars + phone/backpack props (fallback mandatory)
+  './game/camera24.js', // 2.4.0: GTA-style TPV camera — the ONLY TPV camera controller
   './game/ambient23.js', // 2.3.0: random non-looping ambient events + surface footsteps
 ];
 
@@ -140,7 +141,7 @@ async function boot() {
     window.FFBootDone = true;
     const loading = document.getElementById('loading-screen');
     if (loading) loading.style.display = 'none';
-    console.log('[Family Fun 2.3.0] all game scripts loaded, Three bundled via Vite');
+    console.log('[Family Fun 2.4.0] all game scripts loaded, Three bundled via Vite');
   } catch (e) {
     clearTimeout(watchdog);
     window.FFBootFailed = true;

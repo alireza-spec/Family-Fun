@@ -1308,7 +1308,12 @@ function drawMinimap(){
 // ════════════════════════════════════
 let walkT=0;
 // 2.3.0: smooth movement state — acceleration curves, jump physics, lean.
+// 2.4.0: ffSmoothYaw stops the body snapping to the movement direction
+// (the old code assigned rotation.y = newYaw instantly every frame);
+// ffPrevWalkSin drives footsteps from the walk-cycle zero crossing, so
+// steps stay in rhythm with the animation instead of a fixed 0.38s timer.
 let ffCurSpeed=0, ffJumpVy=0, ffJumping=false, ffPrevYaw=0, ffLastMoveX=0, ffLastMoveZ=0;
+let ffSmoothYaw=0, ffSmoothYawInit=false, ffPrevWalkSin=0;
 
 function animate(){
   requestAnimationFrame(animate);
@@ -1346,12 +1351,23 @@ function animate(){
       const newYaw=Math.atan2(mv.x,mv.z);
       // 2.3.0 body lean into turns (turn speed depends on speed).
       let dYaw=newYaw-ffPrevYaw; while(dYaw>Math.PI)dYaw-=Math.PI*2; while(dYaw<-Math.PI)dYaw+=Math.PI*2;
-      playerBody.rotation.y=newYaw;
+      // 2.4.0: turn smoothly toward the movement direction (shortest arc,
+      // frame-rate-independent) instead of snapping rotation.y every frame.
+      if(!ffSmoothYawInit){ ffSmoothYaw=newYaw; ffSmoothYawInit=true; }
+      else {
+        let dy=newYaw-ffSmoothYaw; while(dy>Math.PI)dy-=Math.PI*2; while(dy<-Math.PI)dy+=Math.PI*2;
+        ffSmoothYaw += dy * Math.min(1, dt*10);
+      }
+      playerBody.rotation.y=ffSmoothYaw;
       playerBody.rotation.z=Math.max(-0.18,Math.min(0.18,-dYaw*Math.min(1,ffCurSpeed/C.SPEED)*0.6));
       ffPrevYaw=newYaw;
       ffLastMoveX=mv.x; ffLastMoveZ=mv.z;
       walkT+=dt*(isSprint?14:9);
-      if(window.FFFootstep && (!window._ffLastStep || t-window._ffLastStep>0.38)){ window._ffLastStep=t; window.FFAudio&&window.FFAudio.footstep(); window.FFFootstep(playerGroup.position.x,playerGroup.position.z); }
+      // 2.4.0: a footstep on every half walk cycle (sin zero crossing),
+      // so steps follow the animation speed (walk vs sprint), not a clock.
+      const ws=Math.sin(walkT);
+      if(window.FFFootstep && ((ffPrevWalkSin>0 && ws<=0) || (ffPrevWalkSin<0 && ws>=0))){ window.FFAudio&&window.FFAudio.footstep(); window.FFFootstep(playerGroup.position.x,playerGroup.position.z); }
+      ffPrevWalkSin=ws;
       const sw=Math.sin(walkT)*0.48;
       const ll=playerBody.getObjectByName('leftLeg'); if(ll)ll.rotation.x=sw;
       const rl=playerBody.getObjectByName('rightLeg'); if(rl)rl.rotation.x=-sw;
@@ -1399,10 +1415,14 @@ function animate(){
       playerGroup.position.z + Math.cos(camYaw)
     );
     camera.lookAt(targetVector);
+  } else if (window.FFCamera24) {
+    // 2.4.0: THE single TPV camera controller (camera24.js) — GTA-style
+    // behind-the-character camera with dt-based damping and continuous
+    // raycast collision vs buildings AND vehicles. The old inline code
+    // below is kept only as a fallback if camera24.js failed to load.
+    window.FFCamera24.update(dt, {pos: playerGroup.position, yaw: camYaw, driving: drivingNow});
   } else {
-    // 2.3.0 follow camera: smoothed, look-ahead in movement direction,
-    // wider/farther while driving, and wall-collision pull-in so the
-    // camera never clips through a building behind the player.
+    // Fallback (camera24.js missing): old 2.3.0 follow camera.
     let cd = C.CAM_DIST;
     let ch = C.CAM_H;
     if(drivingNow){ cd = C.CAM_DIST * 1.45; ch = C.CAM_H * 1.25; }
@@ -1414,7 +1434,6 @@ function animate(){
     const tz = playerGroup.position.z - Math.cos(camYaw) * cd;
 
     camera.position.lerp(new THREE.Vector3(tx, ty, tz), C.CAM_LAG);
-    // Look-ahead: aim slightly in the direction of travel, not at the feet.
     const la = 1.1;
     camera.lookAt(
       playerGroup.position.x + ffLastMoveX * la * 8,
@@ -1478,7 +1497,14 @@ function updateNPCs(dt,t){
         const pd=Math.sqrt(pdx*pdx+pdz*pdz);
         if(pd<0.9 && pd>0.001){ npc.position.x=playerGroup.position.x+pdx/pd*0.9; npc.position.z=playerGroup.position.z+pdz/pd*0.9; }
       }
-      npc.lookAt(ud.target.x,npc.position.y,ud.target.z);
+      // 2.4.0: NPCs turn smoothly toward their walk direction (shortest
+      // arc, dt-based) instead of lookAt() snapping every frame. The yaw
+      // convention matches the player: +Z faces the movement direction.
+      const tyaw=Math.atan2(ud.target.x-npc.position.x, ud.target.z-npc.position.z);
+      if(ud.smoothYaw===undefined) ud.smoothYaw=npc.rotation.y;
+      let ndy=tyaw-ud.smoothYaw; while(ndy>Math.PI)ndy-=Math.PI*2; while(ndy<-Math.PI)ndy+=Math.PI*2;
+      ud.smoothYaw += ndy * Math.min(1, dt*6);
+      npc.rotation.y=ud.smoothYaw;
       const wt=t*9+ud.walkOff;
       const body=ud.body;
       body.getObjectByName('leftLeg').rotation.x=Math.sin(wt)*0.42;

@@ -63,6 +63,7 @@ const SCRIPTS = [
   './game/logic23.js', // 2.3.0: colliders / camera-collision helpers
   './game/models23.js', // 2.3.0: real GLB characters/cars + phone/backpack props (fallback mandatory)
   './game/camera24.js', // 2.4.0: GTA-style TPV camera — the ONLY TPV camera controller
+  './game/city25.js', // 2.5.0: GTA city dressing (markings, crossings, signs)
   './game/ambient23.js', // 2.3.0: random non-looping ambient events + surface footsteps
 ];
 

@@ -37,31 +37,68 @@ function loadGLB(file){
     });
   });
 }
+function measureSkinned(scene){
+  // 2.5.0 ROBUST height: Box3 ignores skinning (it measured 0.15 for a
+  // character whose SKINNED render is 0.4455 in scene space, measured with
+  // three r158's own shader formula). So measure the skinned vertices
+  // directly: skinVertex = bindMatrix * pos; skinned = sum(boneMat *
+  // skinVertex * weight); world = bindMatrixInverse^-1... exactly the
+  // vertex-shader path (bindMatrix, boneMatrices, bindMatrixInverse,
+  // matrixWorld). Returns {height, minY} in scene space, or null.
+  try{
+    scene.updateMatrixWorld(true);
+    var minY = Infinity, maxY = -Infinity, found = false;
+    scene.traverse(function(o){
+      if (!o.isSkinnedMesh || !o.skeleton) return;
+      try{
+        o.skeleton.update();
+        var pos = o.geometry.attributes.position;
+        var jt = o.geometry.attributes.skinIndex.array;
+        var wt = o.geometry.attributes.skinWeight.array;
+        var bm = o.skeleton.boneMatrices;
+        var bind = o.bindMatrix, bindInv = o.bindMatrixInverse, mw = o.matrixWorld;
+        var v = new THREE.Vector4(), tmp = new THREE.Vector4(), skin = new THREE.Vector4();
+        for (var i = 0; i < pos.count; i++){
+          v.set(pos.getX(i), pos.getY(i), pos.getZ(i), 1).applyMatrix4(bind);
+          skin.set(0, 0, 0, 0);
+          for (var k = 0; k < 4; k++){
+            var ji = jt[i * 4 + k], w = wt[i * 4 + k]; if (!w) continue;
+            tmp.copy(v).applyMatrix4(new THREE.Matrix4().fromArray(bm, ji * 16)).multiplyScalar(w);
+            skin.add(tmp);
+          }
+          skin.applyMatrix4(bindInv);
+          var wv = new THREE.Vector3(skin.x, skin.y, skin.z).applyMatrix4(mw);
+          if (wv.y < minY) minY = wv.y; if (wv.y > maxY) maxY = wv.y; found = true;
+        }
+      }catch(e){}
+    });
+    if (found && maxY - minY > 0.05) return {height: maxY - minY, minY: minY};
+  }catch(e){ warn('measureSkinned', e); }
+  return null;
+}
 function fitCharacter(scene){
-  // 2.4.0 SCALE FIX — the 2.3.0 bug that made the player a giant:
-  // Box3.setFromObject() IGNORES skinning, so for a skinned Gobkit
-  // character it measures only the bind-pose geometry: height ≈0.15
-  // (measured in node with three r158, same code path as the game).
-  // The old code then scaled by 1.7/0.15 ≈ 11.3 — but the SKINNED render
-  // is ~2x taller than that Box3 height, so the player came out
-  // ~2.7-4.6 units tall on the user's phone screenshots, towering over
-  // a race car whose (reliable, non-skinned) height is only 1.17.
-  // Fix: halve the Box3-derived scale (CHAR_RENDER_CORRECTION = 0.5,
-  // the midpoint of the 1.6-2.7x over-scale range measured from the
-  // screenshots), giving a rendered height ≈1.7 — the same as every
-  // NPC, so player/NPC parity is exact by construction. All Gobkit
-  // characters share one rig, so one correction fits all five files.
+  // 2.5.0 SCALE FIX (replaces the 2.4.0 magic 0.5 factor, which overshot):
+  // target RENDERED height is exactly 1.8 units for every character, by
+  // construction: s = 1.8 / measuredSkinnedHeight. Measured in three r158:
+  // courier 0.4455, cashier 0.3907, accountant 0.3415, patrol 0.3756,
+  // paramedic 0.3883 (scene space) -> scales 4.04 / 4.61 / 5.27 / 4.79 / 4.64.
+  // A sedan is 4.1 long and ~1.0-1.7 high, so a 1.8 person next to a car
+  // reads as a person next to a car (head near a sedan roof, below a van).
   var wrapper = new THREE.Group();
   try{
-    var box = new THREE.Box3().setFromObject(scene);
-    var size = new THREE.Vector3(); box.getSize(size);
-    var h = size.y || 0.15;
-    var s = (1.7 / h) * 0.5;
+    var m = measureSkinned(scene);
+    var s, footY;
+    if (m){ s = 1.8 / m.height; footY = m.minY * s; }
+    else {
+      var box = new THREE.Box3().setFromObject(scene);
+      var size = new THREE.Vector3(); box.getSize(size);
+      var h = size.y || 0.15; s = (1.7 / h) * 0.5; footY = 0;
+      log('fitCharacter FALLBACK boxH=' + h.toFixed(3) + ' scale=' + s.toFixed(2));
+    }
     scene.scale.setScalar(s);
-    var box2 = new THREE.Box3().setFromObject(scene);
-    scene.position.y = -box2.min.y;
+    scene.position.y = -footY;
     scene.traverse(function(o){ if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
-    log('fitCharacter boxH=' + h.toFixed(3) + ' scale=' + s.toFixed(2) + ' -> rendered ~1.7');
+    log('fitCharacter skinned=' + (m ? m.height.toFixed(4) : 'n/a') + ' scale=' + s.toFixed(2) + ' -> rendered 1.8');
   }catch(e){ warn('fitCharacter', e); }
   wrapper.add(scene);
   return wrapper;
@@ -220,7 +257,7 @@ function loop(){
         if (backpackGroup && backpackGroup.parent === pg){
           var yaw = pb ? pb.rotation.y : 0;
           backpackGroup.rotation.y = yaw;
-          backpackGroup.position.set(-Math.sin(yaw)*0.24, 0.82, -Math.cos(yaw)*0.24);
+          backpackGroup.position.set(-Math.sin(yaw)*0.24, 0.88, -Math.cos(yaw)*0.24); // 2.5.0: 1.8-unit player
           backpackGroup.visible = backpackOn;
         }
         // Phone: only while a dialog/call box is open, held at the head side.
@@ -231,7 +268,7 @@ function loop(){
           if (open){
             var y2 = pb ? pb.rotation.y : 0;
             phoneGroup.rotation.y = y2; phoneGroup.rotation.z = -0.25;
-            phoneGroup.position.set(Math.cos(y2)*0.20 + Math.sin(y2)*0.08, 1.32, -Math.sin(y2)*0.20 + Math.cos(y2)*0.08);
+            phoneGroup.position.set(Math.cos(y2)*0.20 + Math.sin(y2)*0.08, 1.48, -Math.sin(y2)*0.20 + Math.cos(y2)*0.08); // 2.5.0: 1.8-unit player
           }
         }
       }
@@ -304,11 +341,57 @@ function installNPCs(){
       // never the tiny-box look from the screenshots, which was the
       // giant player making normal NPCs look small by comparison.
       wrapper.scale.multiplyScalar(0.94 + (idx % 5) * 0.03);
+      npc.userData.speedFactor = 0.85 + (idx % 5) * 0.08; // 2.5.0: varied walk speeds
       npc.add(wrapper);
       npc.userData.body.visible = false;
       var entry = makeMixer(wrapper, tpl, 'Idle');
       modelledNPCs.push({group: npc, entry: entry, prev: {x: npc.position.x, z: npc.position.z}});
     }catch(e){ warn('npc install failed', e); }
+  });
+}
+var CAR_PAINTS = [0xd7263d, 0x1f6feb, 0xf2b705, 0x2ecc71, 0x8e44ad, 0xe67e22, 0x20c2c2, 0xe8e8e8];
+function paintCar(wrapper, seed){
+  // 2.5.0: Kenney cars shipped all-white and flat-looking. Give each car
+  // a real paint job (metalness + varied colour, cloned per instance so
+  // cars do not share one material) and dark wheels so they read as cars.
+  try{
+    var paint = CAR_PAINTS[Math.abs(seed) % CAR_PAINTS.length];
+    wrapper.traverse(function(n){
+      if (!n.isMesh) return;
+      var nm = (n.name || '').toLowerCase();
+      if (nm.indexOf('wheel') >= 0){
+        n.material = new THREE.MeshStandardMaterial({color: 0x16181c, roughness: 0.9, metalness: 0.1});
+      } else if (nm === 'body' || nm.indexOf('body') >= 0){
+        var m = n.material ? n.material.clone() : new THREE.MeshStandardMaterial({});
+        m.color = new THREE.Color(paint); m.metalness = 0.55; m.roughness = 0.38; n.material = m;
+      }
+      n.castShadow = true;
+    });
+  }catch(e){}
+}
+function installPeds(){
+  // 2.5.0: GTA traffic pedestrians (gta.js makePed) are capsule/box figures
+  // in a separate list — NOT window.npcs — so installNPCs never touched
+  // them. That is the yellow capsule figure in the 2.4.0 screenshot.
+  // Replace each with a GLB model at the corrected 1.8 scale; the GTA
+  // update keeps driving ped.group rotation/position, and the mixer is
+  // driven from position delta via the modelledNPCs list.
+  var list = [];
+  try{ list = (window.FFGTA && window.FFGTA.peds) || []; }catch(e){}
+  list.forEach(function(ped, idx){
+    if (!ped || !ped.group || ped.group.userData.ff25PedModelled) return;
+    var tpl = templates[CHAR_FILES[idx % CHAR_FILES.length]];
+    if (!tpl) return;
+    try{
+      var clone = cloneSkinned(tpl);
+      var wrapper = fitCharacter(clone);
+      wrapper.scale.multiplyScalar(0.94 + (idx % 5) * 0.03);
+      ped.group.add(wrapper);
+      ped.group.children.forEach(function(c){ if (c !== wrapper) c.visible = false; });
+      ped.group.userData.ff25PedModelled = true;
+      var entry = makeMixer(wrapper, tpl, 'Walk');
+      modelledNPCs.push({group: ped.group, entry: entry, prev: {x: ped.group.position.x, z: ped.group.position.z}});
+    }catch(e){ warn('ped install failed', e); }
   });
 }
 function carModelFor(car){
@@ -331,6 +414,7 @@ function installCars(){
       try{
         var clone = tpl.scene.clone(true);
         var wrapper = fitCar(clone, key === 'van' || key === 'truck' ? 4.6 : 4.1);
+        paintCar(wrapper, idSeq);
         o.add(wrapper);
         hideChildren(o);
         // Re-show the wrapper (hideChildren only hid pre-existing children).
@@ -367,6 +451,7 @@ function installCars(){
     try{
       var clone = tpl.scene.clone(true);
       var wrapper = fitCar(clone, 4.1);
+      paintCar(wrapper, i);
       g.add(wrapper);
       hideChildren(g); wrapper.visible = true;
       var wheels = [];
@@ -410,6 +495,7 @@ toLoad.forEach(function(f){
 setInterval(function(){
   try{ installPlayer(); }catch(e){}
   try{ installNPCs(); }catch(e){}
+  try{ installPeds(); }catch(e){}
   try{ installCars(); }catch(e){}
   try{ addDrawerButtons(); }catch(e){}
 }, 900);

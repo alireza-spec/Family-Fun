@@ -388,7 +388,10 @@ function update(dt, t){
     // 2.3.0 speed-dependent steering: sharper at low speed, calmer at
     // high speed (no twitchy steering at 60 km/h, no sluggish turn at 5).
     var steerRate = (hand ? 1.6 : (1.35 / (1 + Math.abs(driveSpeed) * 0.045))) * grip * (hand ? 0.6 : 1);
-    driveHeading += steer * dt * steerRate * (driveSpeed >= 0 ? 1 : -1);
+    // 2.5.0 STEERING SIGN: car forward F=(sin h, cos h); dF/dh=(cos,-sin)
+    // = -screen-right, so turning screen-RIGHT needs heading to DECREASE.
+    // The old '+=' therefore steered right when the player pushed left.
+    driveHeading -= steer * dt * steerRate * (driveSpeed >= 0 ? 1 : -1);
     driving.heading = driveHeading;
     driving.group.rotation.y = driveHeading;
     var nx = driving.group.position.x + Math.sin(driveHeading) * driveSpeed * dt;
@@ -593,6 +596,7 @@ window.FFGTA = {
   state: state, save: save, unlock: unlock, offence: offence,
   get wanted(){ return state.wanted; },
   get driving(){ return driving; },
+  get peds(){ return peds; }, // 2.5.0: lets models23 replace capsule peds with GLB models
   get interior(){ return !!interior; },
   setInterior: function(v, ret){ interior = v; if (ret) returnPos = ret; },
   get returnPos(){ return returnPos; },

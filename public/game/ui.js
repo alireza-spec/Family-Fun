@@ -12,7 +12,7 @@ function init(){
   // version badge on start screen
   var start=document.getElementById('start-screen');
   if(start && !document.getElementById('ff-version')){
-    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۴٫۰ — دوربین GTA + مقیاس درست';
+    var v=document.createElement('div'); v.id='ff-version'; v.textContent='نسخه ۲٫۵٫۰ — جوی‌استیک درست + دوربین GTA + شهر جذاب';
     start.appendChild(v);
   }
   // continue button if an autosave exists

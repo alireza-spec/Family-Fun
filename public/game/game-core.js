@@ -943,7 +943,7 @@ function updateTag(obj,tag){
     tag.style.display = 'none';
     return;
   }
-  const p=obj.position.clone();p.y+=2.3;p.project(camera);
+  const p=obj.position.clone();p.y+=2.05;p.project(camera); // 2.5.0: 1.8-unit player, tag just above the head
   const x=(p.x*.5+.5)*innerWidth, y=(-p.y*.5+.5)*innerHeight;
   if(p.z<1&&x>0&&x<innerWidth&&y>0&&y<innerHeight){
     tag.style.display='flex';tag.style.left=x+'px';tag.style.top=y+'px';
@@ -1215,6 +1215,9 @@ function endCall(){
 function setupControls(){
   const zone=document.getElementById('joystick-zone');
   const knob=document.getElementById('joystick-knob');
+  // 2.5.0: the page is RTL — force the joystick container LTR so the knob
+  // can never be mirrored by direction:rtl (knob px offsets are screen px).
+  try{ zone.style.direction='ltr'; zone.style.unicodeBidi='isolate'; }catch(e){}
   let jx=0,jy=0;
 
   zone.addEventListener('touchstart',e=>{e.preventDefault();jx=e.touches[0].clientX;jy=e.touches[0].clientY;},{passive:false});
@@ -1323,8 +1326,24 @@ function animate(){
   const drivingNow = !!(window.FFGTA && window.FFGTA.driving);
 
   if(!isBlock){
-    const fwd=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw); // 2.2.0 JOYSTICK FIX: camera looks along +(sin,cos), so forward MUST be (0,0,1) rotated — the old (0,0,-1) pointed at the camera, so joystick-up/W walked toward the viewer (reversed). Right vector (1,0,0) rotated was already screen-right, so only forward/back was flipped.
-    const rgt=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw);
+    // 2.5.0 JOYSTICK L/R ROOT CAUSE + FIX (the 2.2.0 claim was WRONG):
+    // The old right vector was (1,0,0) rotated by camYaw = (cos,-sin).
+    // But the camera sits at player - (sin,cos)*dist and looks along
+    // F=(sin,cos), so its true screen-right is F x up = (-cos,sin) —
+    // exactly the NEGATIVE of the old vector. So joystick-right (and D)
+    // moved the player screen-LEFT, and joystick-left moved screen-RIGHT,
+    // while forward/back (which used the correct F) stayed right — which
+    // is exactly what the user reported in 2.4.0. The fix below derives
+    // the basis DIRECTLY from the live camera every frame, so it cannot
+    // drift from any camYaw convention again: forward = camera view
+    // direction projected on XZ, right = forward x up (Three's camera
+    // right). Joystick-up = forward, joystick-right = screen-right, and
+    // WASD uses the same basis, so keys and joystick can never disagree.
+    var fwd=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),camYaw);
+    try{
+      if(camera){ camera.getWorldDirection(fwd); fwd.y=0; if(fwd.lengthSq()>0.001) fwd.normalize(); else fwd.set(Math.sin(camYaw),0,Math.cos(camYaw)); }
+    }catch(e){}
+    var rgt=new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0,1,0));
     let mx=moveX,my=moveY;
     const k=window._keys||{};
     if(k['KeyW']||k['ArrowUp'])my=-1;
@@ -1483,7 +1502,7 @@ function updateNPCs(dt,t){
     const dir=new THREE.Vector3().subVectors(ud.target,npc.position);
     const dist=dir.length();
     if(dist>0.5){
-      dir.normalize().multiplyScalar(C.NPC_SPEED*dt);
+      dir.normalize().multiplyScalar(C.NPC_SPEED*(ud.speedFactor||1)*dt); // 2.5.0: per-NPC walk speed (set by models23)
       // 2.3.0: peds do not walk through the player or through buildings.
       const nx=npc.position.x+dir.x, nz=npc.position.z+dir.z;
       if(window.FFLogic){

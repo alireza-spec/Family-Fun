@@ -32,7 +32,22 @@
      collision + smoothing rules. POV mode is untouched (game-core). */
 (function(){
 'use strict';
-var FOOT_DIST = 6.0, FOOT_H = 3.0, FOOT_FOV = 68;
+// 2.5.0 CAMERA MODES + closer default. The 2.4.0 default (dist 6.0, FOV 68)
+// made a 1.8-unit player only ~21% of screen height, and the user read
+// that as 'too small'. Follow (default) is now dist 4.8 / height 2.7 /
+// FOV 64: slant = sqrt(4.8^2 + (2.7-1.45)^2) = 4.97, screen fraction =
+// 1.8 / (2 * 4.97 * tan(32 deg)) = 1.8 / 6.21 = 29% — the GTA target
+// band (25-30%). Shoulder is closer/sideways, Wide is for city/driving.
+var MODES = {
+  follow:   {foot: [4.8, 2.7, 64, 0.55], drive: [8.6, 3.9, 74, 0.4]},
+  shoulder: {foot: [3.4, 2.3, 62, 1.05], drive: [6.5, 3.2, 70, 0.8]},
+  wide:     {foot: [7.5, 3.8, 70, 0.30], drive: [11.0, 4.8, 76, 0.3]}
+};
+var MODE_ORDER = ['follow', 'shoulder', 'wide'];
+var MODE_LABEL = {follow: 'دنبال‌کننده', shoulder: 'شانه‌ای', wide: 'باز'};
+var camMode25 = 'follow';
+try{ var saved = localStorage.getItem('ff-camera-mode'); if (MODES[saved]) camMode25 = saved; }catch(e){}
+var FOOT_DIST = 4.8, FOOT_H = 2.7, FOOT_FOV = 64;
 var DRIVE_DIST = 8.6, DRIVE_H = 3.9, DRIVE_FOV = 74;
 var MIN_DIST = 1.2, MARGIN = 0.35, BLOCK_R = 0.45;
 var st = {
@@ -137,15 +152,35 @@ function collideDistance(head, desired, dist){
   var allowed = dist * tHit - MARGIN;
   return Math.max(MIN_DIST, allowed);
 }
+function camModeButton(){
+  try{
+    var sys = document.getElementById('ff-drawer-sys');
+    if (!sys || document.getElementById('ff-cam-mode-btn')) return;
+    var b = document.createElement('button');
+    b.id = 'ff-cam-mode-btn'; b.className = 'acircle'; b.textContent = '🎥';
+    b.title = 'دوربین: ' + MODE_LABEL[camMode25] + ' (بزن تا عوض شود)';
+    b.onclick = function(){
+      var i = MODE_ORDER.indexOf(camMode25); camMode25 = MODE_ORDER[(i + 1) % MODE_ORDER.length];
+      try{ localStorage.setItem('ff-camera-mode', camMode25); }catch(e){}
+      b.title = 'دوربین: ' + MODE_LABEL[camMode25] + ' (بزن تا عوض شود)';
+      try{ if (typeof showToast === 'function') showToast('🎥 دوربین: ' + MODE_LABEL[camMode25]); }catch(e){}
+    };
+    sys.appendChild(b);
+  }catch(e){}
+}
 window.FFCamera24 = {
   snap: function(){ st.init = false; },
+  setMode: function(m){ if (MODES[m]){ camMode25 = m; try{ localStorage.setItem('ff-camera-mode', m); }catch(e){} } },
+  getMode: function(){ return camMode25; },
+  cycleMode: function(){ var i = MODE_ORDER.indexOf(camMode25); camMode25 = MODE_ORDER[(i + 1) % MODE_ORDER.length]; try{ localStorage.setItem('ff-camera-mode', camMode25); }catch(e){} return camMode25; },
   update: function(dt, o){
     var camera = window.camera; if (!camera || !o || !o.pos) return;
+    camModeButton();
     dt = Math.min(Math.max(dt || 0.016, 0.001), 0.05);
     var driving = !!o.driving;
-    var dist = driving ? DRIVE_DIST : FOOT_DIST;
-    var height = driving ? DRIVE_H : FOOT_H;
-    var fovT = driving ? DRIVE_FOV : FOOT_FOV;
+    var mp = MODES[camMode25] || MODES.follow;
+    var cfg = driving ? mp.drive : mp.foot;
+    var dist = cfg[0], height = cfg[1], fovT = cfg[2], side = cfg[3];
     var px = o.pos.x, py = o.pos.y || 0, pz = o.pos.z;
     // Smoothed yaw follows the drag yaw (game-core camYaw) on foot.
     // While driving, the GTA follow-cam instead swings behind the CAR:
@@ -172,22 +207,24 @@ window.FFCamera24 = {
     var lax = speed > 0.1 ? (st.velX / speed) * la : 0;
     var laz = speed > 0.1 ? (st.velZ / speed) * la : 0;
     // Head anchor + desired position, then collision-shortened distance.
-    var head = {x: px, y: py + (driving ? 1.6 : 1.5), z: pz};
+    var head = {x: px, y: py + (driving ? 1.6 : 1.65), z: pz}; // 2.5.0: head of a 1.8-unit player
     if (st.carCacheTick++ % 60 === 0) st.carCache = collectCars();
+    // Over-shoulder side offset: screen-right for this yaw is
+    // F x up = (-cos, sin), so +side moves the camera to screen-right.
     var desired = {
-      x: px - sy * dist,
+      x: px - sy * dist + (-cy) * side,
       y: py + height,
-      z: pz - cy * dist
+      z: pz - cy * dist + sy * side
     };
     var okDist = collideDistance(head, desired, dist);
     // Height keeps a floor: a pulled-in camera must stay above the head,
     // never dive to the ground the way the old proportional formula did.
     var frac = okDist / dist;
     var hy = py + Math.max(height * (0.55 + 0.45 * frac), 1.9);
-    desired = {x: px - sy * okDist, y: hy, z: pz - cy * okDist};
+    desired = {x: px - sy * okDist + (-cy) * side * frac, y: hy, z: pz - cy * okDist + sy * side * frac};
     var lookT = {
       x: px + lax,
-      y: py + (driving ? 1.4 : 1.35),
+      y: py + (driving ? 1.4 : 1.45),
       z: pz + laz
     };
     if (!st.init){

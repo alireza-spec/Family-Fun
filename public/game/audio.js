@@ -74,6 +74,7 @@ function ensureGraph(el, name){
 }
 function loopVol(L, v){
   try{
+    if (_actx && _actx.state === 'suspended') _actx.resume(); // 2.6.0: never stay silent after a tab switch
     if (L.el._ffGain) { L.el._ffGain.gain.setTargetAtTime(v, _actx.currentTime, 0.08); return; }
   }catch(e){}
   L.el.volume = v;
